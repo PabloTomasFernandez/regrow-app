@@ -1,14 +1,15 @@
 import json
+
 import streamlit as st
 
 
-# --- Funciones que ya escribiste ---
+# --- Funciones de datos ---
 
 
 def guardar_proyectos(proyectos: list[dict], ruta: str = "proyectos.json") -> None:
     if proyectos:
         with open(ruta, "w") as archivo:
-            json.dump(proyectos, archivo, indent=2)
+            json.dump(proyectos, archivo, indent=2, ensure_ascii=False)
     else:
         st.warning("No hay proyectos por guardar")
 
@@ -21,19 +22,62 @@ def cargar_proyectos(ruta: str = "proyectos.json") -> list[dict]:
         return []
 
 
-def buscar_tareas_por_persona(proyectos: list[dict], persona: str = "Todos") -> list[dict]:
+def buscar_tareas_por_persona(
+    proyectos: list[dict], persona: str = "Todos"
+) -> list[dict]:
     tareas = []
     for proyecto in proyectos:
         for tarea in proyecto.get("tareas", []):
             if persona == "Todos" or tarea["asignado_a"] == persona:
-                tareas.append({
-                    "empresa": proyecto["empresa"]["nombre"],
-                    "tarea": tarea["nombre"],
-                    "estado": tarea["estado"],
-                    "fecha_vencimiento": tarea["fecha_vencimiento"],
-                    "semana": tarea["semana"],
-                })
+                tareas.append(
+                    {
+                        "empresa": proyecto["empresa"]["nombre"],
+                        "tarea": tarea["nombre"],
+                        "estado": tarea["estado"],
+                        "fecha_vencimiento": tarea["fecha_vencimiento"],
+                        "semana": tarea["semana"],
+                    }
+                )
     return tareas
+
+
+def crear_proyecto(
+    proyectos: list[dict],
+    empresa_nombre: str,
+    empresa_web: str,
+    contacto_nombre: str,
+    contacto_apellido: str,
+    linkedin_url: str = "",
+    ghl_url: str = "",
+) -> dict:
+    proyecto_id = max((p["id"] for p in proyectos), default=0) + 1
+    new_project = {
+        "id": proyecto_id,
+        "empresa": {"nombre": empresa_nombre, "web": empresa_web},
+        "contacto": {
+            "nombre": contacto_nombre,
+            "apellido": contacto_apellido,
+            "linkedin_url": linkedin_url,
+            "ghl_url": ghl_url,
+        },
+        "estado": "inactivo",
+        "started_date": "",
+        "end_date": "",
+        "equipo": {
+            "pusher_coach": "",
+            "account_manager": "",
+            "copy": "",
+            "sdr": "",
+            "automater": "",
+            "coo": "",
+        },
+        "tareas": [],
+        "notas": [],
+    }
+    proyectos.append(new_project)
+    guardar_proyectos(proyectos)
+    return new_project
+
 
 # --- Datos de ejemplo ---
 
@@ -47,7 +91,7 @@ PROYECTOS_EJEMPLO = [
             "linkedin_url": "...",
             "ghl_url": "...",
         },
-        "activo": True,
+        "estado": "activo",
         "started_date": "2026-03-19",
         "end_date": "",
         "equipo": {
@@ -100,6 +144,7 @@ PROYECTOS_EJEMPLO = [
                 "completado": False,
             },
         ],
+        "notas": [],
     },
     {
         "id": 2,
@@ -110,9 +155,9 @@ PROYECTOS_EJEMPLO = [
             "linkedin_url": "...",
             "ghl_url": "...",
         },
-        "activo": False,
+        "estado": "pausado",
         "started_date": "2026-01-19",
-        "end_date": "2026-03-19",
+        "end_date": "",
         "equipo": {
             "pusher_coach": "clg@regrow.academy",
             "account_manager": "rg@regrow.agency",
@@ -147,60 +192,12 @@ PROYECTOS_EJEMPLO = [
                 "completado": True,
             },
         ],
-    },
-    {
-        "id": 3,
-        "empresa": {"nombre": "CyberShield", "web": "www.cybershield.io"},
-        "contacto": {
-            "nombre": "Carlos",
-            "apellido": "Méndez",
-            "linkedin_url": "https://www.linkedin.com/in/cmendez-cs",
-            "ghl_url": "https://app.gohighlevel.com/v2/location/cs_003",
-        },
-        "activo": True,
-        "started_date": "2026-03-01",
-        "end_date": "",
-        "equipo": {
-            "pusher_coach": "clg@regrow.academy",
-            "account_manager": "mb@regrow.agency",
-            "copy": "dm@regrow.academy",
-            "sdr": "ar@regrow.agency",
-            "automater": "tf@regrow.agency",
-            "coo": "fv@regrow.academy",
-        },
-        "tareas": [
+        "notas": [
             {
-                "nombre": "Onboarding",
-                "estado": "completado",
-                "asignado_a": "clg@regrow.academy",
-                "semana": 1,
-                "fecha_vencimiento": "2026-03-08",
-                "completado": True,
-            },
-            {
-                "nombre": "Auditoría de Perfiles LinkedIn",
-                "estado": "completado",
-                "asignado_a": "mb@regrow.agency",
-                "semana": 2,
-                "fecha_vencimiento": "2026-03-15",
-                "completado": True,
-            },
-            {
-                "nombre": "Redacción de Lead Magnet (Ebook)",
-                "estado": "en_progreso",
-                "asignado_a": "dm@regrow.academy",
-                "semana": 3,
-                "fecha_vencimiento": "2026-03-22",
-                "completado": False,
-            },
-            {
-                "nombre": "Configuración de CRM y Pipelines",
-                "estado": "sin_iniciar",
-                "asignado_a": "tf@regrow.agency",
-                "semana": 4,
-                "fecha_vencimiento": "2026-03-29",
-                "completado": False,
-            },
+                "autor": "clg@regrow.academy",
+                "fecha": "2026-03-15",
+                "texto": "Cliente no realizó el pago. Pausar tareas.",
+            }
         ],
     },
 ]
@@ -223,14 +220,15 @@ st.sidebar.header("Filtros")
 
 filtro_estado = st.sidebar.selectbox(
     "Estado del proyecto",
-    ["Todos", "Activos", "Inactivos"],
+    ["Todos", "Activo", "Inactivo", "Pausado"],
 )
 
 # Recolectar todos los emails del equipo
 todos_los_emails = set()
 for p in proyectos:
     for email in p["equipo"].values():
-        todos_los_emails.add(email)
+        if email:
+            todos_los_emails.add(email)
 
 filtro_persona = st.sidebar.selectbox(
     "Miembro del equipo",
@@ -238,25 +236,27 @@ filtro_persona = st.sidebar.selectbox(
 )
 
 # --- Filtrar proyectos por estado ---
-if filtro_estado == "Activos":
-    proyectos_filtrados = [p for p in proyectos if p["activo"]]
-elif filtro_estado == "Inactivos":
-    proyectos_filtrados = [p for p in proyectos if not p["activo"]]
-else:
+if filtro_estado == "Todos":
     proyectos_filtrados = proyectos
+else:
+    proyectos_filtrados = [
+        p for p in proyectos if p["estado"] == filtro_estado.lower()
+    ]
 
 # --- Métricas ---
-activos = sum(1 for p in proyectos if p["activo"])
+activos = sum(1 for p in proyectos if p["estado"] == "activo")
+pausados = sum(1 for p in proyectos if p["estado"] == "pausado")
 todas_tareas = []
 for p in proyectos:
     todas_tareas.extend(p.get("tareas", []))
 pendientes = sum(1 for t in todas_tareas if not t["completado"])
 completadas = sum(1 for t in todas_tareas if t["completado"])
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 col1.metric("Proyectos activos", activos)
-col2.metric("Tareas pendientes", pendientes)
-col3.metric("Tareas completadas", completadas)
+col2.metric("Proyectos pausados", pausados)
+col3.metric("Tareas pendientes", pendientes)
+col4.metric("Tareas completadas", completadas)
 
 # --- Tabla de proyectos ---
 st.subheader("Proyectos")
@@ -267,8 +267,9 @@ for p in proyectos_filtrados:
         {
             "Empresa": p["empresa"]["nombre"],
             "Contacto": f"{p['contacto']['nombre']} {p['contacto']['apellido']}",
-            "Account Manager": p["equipo"]["account_manager"],
-            "Estado": "Activo" if p["activo"] else "Inactivo",
+            "Account Manager": p["equipo"]["account_manager"] or "Sin asignar",
+            "Estado": p["estado"].capitalize(),
+            "Última nota": p["notas"][-1]["texto"] if p["notas"] else "Sin notas",
         }
     )
 
@@ -278,9 +279,45 @@ else:
     st.info("No hay proyectos con ese filtro")
 
 # --- Tareas por persona ---
-st.subheader(f"Tareas de {filtro_persona}")
+st.subheader(f"Tareas - {filtro_persona}")
 tareas = buscar_tareas_por_persona(proyectos, filtro_persona)
 if tareas:
     st.dataframe(tareas, use_container_width=True, hide_index=True)
 else:
     st.info("No hay tareas asignadas")
+
+# --- Formulario para crear proyecto ---
+st.subheader("Crear nuevo proyecto")
+
+with st.form("nuevo_proyecto", clear_on_submit=True):
+    col_izq, col_der = st.columns(2)
+
+    with col_izq:
+        empresa_nombre = st.text_input("Nombre de la empresa *")
+        contacto_nombre = st.text_input("Nombre del contacto *")
+        linkedin_url = st.text_input("LinkedIn URL")
+
+    with col_der:
+        empresa_web = st.text_input("Web de la empresa *")
+        contacto_apellido = st.text_input("Apellido del contacto *")
+        ghl_url = st.text_input("GHL URL")
+
+    enviado = st.form_submit_button("Crear proyecto")
+
+    if enviado:
+        if not all([empresa_nombre, empresa_web, contacto_nombre, contacto_apellido]):
+            st.error("Completá todos los campos obligatorios (*)")
+        else:
+            nuevo = crear_proyecto(
+                proyectos=proyectos,
+                empresa_nombre=empresa_nombre,
+                empresa_web=empresa_web,
+                contacto_nombre=contacto_nombre,
+                contacto_apellido=contacto_apellido,
+                linkedin_url=linkedin_url,
+                ghl_url=ghl_url,
+            )
+            st.success(
+                f"Proyecto creado: {nuevo['empresa']['nombre']} (ID: {nuevo['id']})"
+            )
+            st.rerun()
