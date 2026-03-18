@@ -7,3 +7,14 @@ requires-python = ">=3.12"
 dependencies = [
     "streamlit>=1.55.0",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.6",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

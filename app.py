@@ -4,6 +4,7 @@ import streamlit as st
 
 # --- Funciones que ya escribiste ---
 
+
 def guardar_proyectos(proyectos: list[dict], ruta: str = "proyectos.json") -> None:
     if proyectos:
         with open(ruta, "w") as archivo:
@@ -25,13 +26,15 @@ def buscar_tareas_por_persona(proyectos: list[dict], persona: str) -> list[dict]
     for proyecto in proyectos:
         for tarea in proyecto.get("tareas", []):
             if tarea["asignado_a"] == persona:
-                tareas.append({
-                    "empresa": proyecto["empresa"]["nombre"],
-                    "tarea": tarea["nombre"],
-                    "estado": tarea["estado"],
-                    "fecha_vencimiento": tarea["fecha_vencimiento"],
-                    "semana": tarea["semana"],
-                })
+                tareas.append(
+                    {
+                        "empresa": proyecto["empresa"]["nombre"],
+                        "tarea": tarea["nombre"],
+                        "estado": tarea["estado"],
+                        "fecha_vencimiento": tarea["fecha_vencimiento"],
+                        "semana": tarea["semana"],
+                    }
+                )
     return tareas
 
 
@@ -208,12 +211,14 @@ st.subheader("Proyectos")
 
 datos_tabla = []
 for p in proyectos_filtrados:
-    datos_tabla.append({
-        "Empresa": p["empresa"]["nombre"],
-        "Contacto": f"{p['contacto']['nombre']} {p['contacto']['apellido']}",
-        "Account Manager": p["equipo"]["account_manager"],
-        "Estado": "Activo" if p["activo"] else "Inactivo",
-    })
+    datos_tabla.append(
+        {
+            "Empresa": p["empresa"]["nombre"],
+            "Contacto": f"{p['contacto']['nombre']} {p['contacto']['apellido']}",
+            "Account Manager": p["equipo"]["account_manager"],
+            "Estado": "Activo" if p["activo"] else "Inactivo",
+        }
+    )
 
 if datos_tabla:
     st.dataframe(datos_tabla, use_container_width=True, hide_index=True)
