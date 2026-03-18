@@ -37,6 +37,20 @@ def buscar_tareas_por_persona(proyectos: list[dict], persona: str) -> list[dict]
                 )
     return tareas
 
+def buscar_todas_tareas(proyectos: list[dict]) -> list[dict]:
+    tareas = []
+    for proyecto in proyectos:
+        for tarea in proyecto.get("tareas", []):
+            tareas.append(
+                {
+                    "empresa": proyecto["empresa"]["nombre"],
+                    "tarea": tarea["nombre"],
+                    "estado": tarea["estado"],
+                    "fecha_vencimiento": tarea["fecha_vencimiento"],
+                    "semana": tarea["semana"],
+                }
+            )
+    return tareas
 
 # --- Datos de ejemplo ---
 
@@ -151,6 +165,61 @@ PROYECTOS_EJEMPLO = [
             },
         ],
     },
+    {
+        "id": 3,
+        "empresa": {"nombre": "CyberShield", "web": "www.cybershield.io"},
+        "contacto": {
+            "nombre": "Carlos",
+            "apellido": "Méndez",
+            "linkedin_url": "https://www.linkedin.com/in/cmendez-cs",
+            "ghl_url": "https://app.gohighlevel.com/v2/location/cs_003",
+        },
+        "activo": True,
+        "started_date": "2026-03-01",
+        "end_date": "",
+        "equipo": {
+            "pusher_coach": "clg@regrow.academy",
+            "account_manager": "mb@regrow.agency",
+            "copy": "dm@regrow.academy",
+            "sdr": "ar@regrow.agency",
+            "automater": "tf@regrow.agency",
+            "coo": "fv@regrow.academy",
+        },
+        "tareas": [
+            {
+                "nombre": "Onboarding",
+                "estado": "completado",
+                "asignado_a": "clg@regrow.academy",
+                "semana": 1,
+                "fecha_vencimiento": "2026-03-08",
+                "completado": True,
+            },
+            {
+                "nombre": "Auditoría de Perfiles LinkedIn",
+                "estado": "completado",
+                "asignado_a": "mb@regrow.agency",
+                "semana": 2,
+                "fecha_vencimiento": "2026-03-15",
+                "completado": True,
+            },
+            {
+                "nombre": "Redacción de Lead Magnet (Ebook)",
+                "estado": "en_progreso",
+                "asignado_a": "dm@regrow.academy",
+                "semana": 3,
+                "fecha_vencimiento": "2026-03-22",
+                "completado": False,
+            },
+            {
+                "nombre": "Configuración de CRM y Pipelines",
+                "estado": "sin_iniciar",
+                "asignado_a": "tf@regrow.agency",
+                "semana": 4,
+                "fecha_vencimiento": "2026-03-29",
+                "completado": False,
+            },
+        ],
+    },
 ]
 
 
@@ -229,6 +298,13 @@ else:
 if filtro_persona != "Todos":
     st.subheader(f"Tareas de {filtro_persona}")
     tareas = buscar_tareas_por_persona(proyectos, filtro_persona)
+    if tareas:
+        st.dataframe(tareas, use_container_width=True, hide_index=True)
+    else:
+        st.info(f"No hay tareas asignadas a {filtro_persona}")
+else:
+    st.subheader(f"Tareas de {filtro_persona}")
+    tareas = buscar_todas_tareas(proyectos)
     if tareas:
         st.dataframe(tareas, use_container_width=True, hide_index=True)
     else:
