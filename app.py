@@ -21,35 +21,18 @@ def cargar_proyectos(ruta: str = "proyectos.json") -> list[dict]:
         return []
 
 
-def buscar_tareas_por_persona(proyectos: list[dict], persona: str) -> list[dict]:
+def buscar_tareas_por_persona(proyectos: list[dict], persona: str = "Todos") -> list[dict]:
     tareas = []
     for proyecto in proyectos:
         for tarea in proyecto.get("tareas", []):
-            if tarea["asignado_a"] == persona:
-                tareas.append(
-                    {
-                        "empresa": proyecto["empresa"]["nombre"],
-                        "tarea": tarea["nombre"],
-                        "estado": tarea["estado"],
-                        "fecha_vencimiento": tarea["fecha_vencimiento"],
-                        "semana": tarea["semana"],
-                    }
-                )
-    return tareas
-
-def buscar_todas_tareas(proyectos: list[dict]) -> list[dict]:
-    tareas = []
-    for proyecto in proyectos:
-        for tarea in proyecto.get("tareas", []):
-            tareas.append(
-                {
+            if persona == "Todos" or tarea["asignado_a"] == persona:
+                tareas.append({
                     "empresa": proyecto["empresa"]["nombre"],
                     "tarea": tarea["nombre"],
                     "estado": tarea["estado"],
                     "fecha_vencimiento": tarea["fecha_vencimiento"],
                     "semana": tarea["semana"],
-                }
-            )
+                })
     return tareas
 
 # --- Datos de ejemplo ---
@@ -295,17 +278,9 @@ else:
     st.info("No hay proyectos con ese filtro")
 
 # --- Tareas por persona ---
-if filtro_persona != "Todos":
-    st.subheader(f"Tareas de {filtro_persona}")
-    tareas = buscar_tareas_por_persona(proyectos, filtro_persona)
-    if tareas:
-        st.dataframe(tareas, use_container_width=True, hide_index=True)
-    else:
-        st.info(f"No hay tareas asignadas a {filtro_persona}")
+st.subheader(f"Tareas de {filtro_persona}")
+tareas = buscar_tareas_por_persona(proyectos, filtro_persona)
+if tareas:
+    st.dataframe(tareas, use_container_width=True, hide_index=True)
 else:
-    st.subheader(f"Tareas de {filtro_persona}")
-    tareas = buscar_todas_tareas(proyectos)
-    if tareas:
-        st.dataframe(tareas, use_container_width=True, hide_index=True)
-    else:
-        st.info(f"No hay tareas asignadas a {filtro_persona}")
+    st.info("No hay tareas asignadas")
