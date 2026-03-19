@@ -289,6 +289,26 @@ if proyectos_activos:
                 }
             )
         st.dataframe(datos_tareas, use_container_width=True, hide_index=True)
+        # 1. Selectbox para elegir tarea (FUERA del form)
+
+        nombres_tareas = [t["nombre"] for t in tareas_proyecto]
+        tarea_sel_ver = st.selectbox("Ver tarea", nombres_tareas, key="ver_tarea")
+
+        # 2. Buscar la tarea en la lista
+        tarea_encontrada = None
+        for t in tareas_proyecto:
+            if t["nombre"] == tarea_sel_ver:
+                tarea_encontrada = t
+                break
+
+        # 3. Mostrar comentarios dentro de un expander
+        if tarea_encontrada:
+            with st.expander("Comentarios"):
+                if tarea_encontrada["comentarios"]:
+                    for c in tarea_encontrada["comentarios"]:
+                        st.write(f"**{c['autor']}** ({c['fecha']}): {c['texto']}")
+                else:
+                    st.info("Sin comentarios")
 
         with st.form("cambiar_estado", clear_on_submit=True):
             nombres_tareas = [t["nombre"] for t in tareas_proyecto]
