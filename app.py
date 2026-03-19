@@ -3,9 +3,52 @@ import json
 import streamlit as st
 
 
-# --- Templates de campañas ---
+# --- Templates ---
 
-TEMPLATES = {
+TEMPLATE_BASE = [
+    # Onboarding
+    {"nombre": "Onboarding", "rol": "pusher_coach"},
+    {"nombre": "Envío de mensaje post onboarding", "rol": "pusher_coach"},
+    {"nombre": "Envío de mensaje post onboarding", "rol": "coo"},
+    {"nombre": "Creación grupo Whatsapp/Slack", "rol": "account_manager"},
+    {"nombre": "Agendamiento de llamadas", "rol": "coo"},
+    {"nombre": "Alta SN", "rol": "coo"},
+    {"nombre": "Credenciales LinkedIn", "rol": "coo"},
+    {"nombre": "Alta Lemlist", "rol": "coo"},
+    {"nombre": "Credenciales Lemlist", "rol": "coo"},
+    {"nombre": "Envío de encuesta de satisfacción", "rol": "pusher_coach"},
+    # Boost de perfil
+    {"nombre": "Entrevista de contenido", "rol": "copy"},
+    {"nombre": "Propuesta de mejora de perfil", "rol": "copy"},
+    {"nombre": "Validación de mejora de perfil", "rol": "copy"},
+    {"nombre": "Implementación de mejora de perfil", "rol": "sdr"},
+    {"nombre": "Propuesta de ideas para posteos", "rol": "copy"},
+    {"nombre": "Validación de ideas para posteos", "rol": "copy"},
+    {"nombre": "Propuesta de posteos", "rol": "copy"},
+    {"nombre": "Validación de posteos", "rol": "copy"},
+    {"nombre": "Lanzamiento posteo 1", "rol": "sdr"},
+    {"nombre": "Lanzamiento posteo 2", "rol": "sdr"},
+    {"nombre": "Lanzamiento posteo 3", "rol": "sdr"},
+    {"nombre": "Lanzamiento posteo 4", "rol": "sdr"},
+    # Automatización inicial
+    {"nombre": "Reunión de automatizaciones", "rol": "automater"},
+    {"nombre": "Lemlist pago", "rol": "automater"},
+    {"nombre": "Conexión email a Lemlist", "rol": "automater"},
+    {"nombre": "Integración Lemlist-CRM", "rol": "automater"},
+    {"nombre": "Integración Lemlist-OpenAI", "rol": "automater"},
+    {"nombre": "Integración Lemlist-Looker", "rol": "automater"},
+    {"nombre": "Lista de ampliación de red", "rol": "automater"},
+    {"nombre": "Comienzo ampliación de red", "rol": "automater"},
+    # Prospección inicial
+    {"nombre": "Reunión estrategia comercial", "rol": "account_manager"},
+    {"nombre": "Envío informe matriz de prospección", "rol": "account_manager"},
+    {"nombre": "Armado búsqueda para FCA", "rol": "sdr"},
+    {"nombre": "Envío csv para FCA", "rol": "automater"},
+    {"nombre": "Limpieza csv para FCA", "rol": "automater"},
+    {"nombre": "Armado blacklist", "rol": "sdr"},
+]
+
+TEMPLATES_CAMPANA = {
     "campana_normal": [
         {"nombre": "Propuesta de prospecting canvas", "rol": "account_manager"},
         {"nombre": "Validación de prospecting canvas", "rol": "account_manager"},
@@ -68,7 +111,6 @@ def buscar_tareas_por_persona(
                         "empresa": proyecto["empresa"]["nombre"],
                         "tarea": tarea["nombre"],
                         "estado": tarea["estado"],
-                        "fecha_vencimiento": tarea.get("fecha_vencimiento", ""),
                         "semana": tarea.get("semana", ""),
                     }
                 )
@@ -119,17 +161,19 @@ def generar_tareas_campana(
     numero: int,
     incluir_sales_pilot: bool = False,
 ) -> list[dict]:
-    plantillas = TEMPLATES[tipo]
+    plantillas = TEMPLATES_CAMPANA[tipo]
 
     if tipo == "campana_normal" and incluir_sales_pilot:
-        plantillas = plantillas + TEMPLATES["sales_pilot"]
+        plantillas = plantillas + TEMPLATES_CAMPANA["sales_pilot"]
+
+    etiqueta = "Evento" if tipo == "evento" else "Campaña"
 
     tareas = []
     for tarea in plantillas:
         email = proyecto["equipo"].get(tarea["rol"], "")
         tareas.append(
             {
-                "nombre": f"{tarea['nombre']} - Campaña {numero}",
+                "nombre": f"{tarea['nombre']} - {etiqueta} {numero}",
                 "asignado_a": email,
                 "estado": "sin_iniciar",
                 "completado": False,
@@ -139,21 +183,87 @@ def generar_tareas_campana(
 
 
 def contar_campanas(proyecto: dict, tipo: str) -> int:
-    """Cuenta cuántas campañas de un tipo ya tiene el proyecto."""
-    prefijo = "SP" if tipo == "sales_pilot" else tipo
+    etiqueta = "Evento" if tipo == "evento" else "Campaña"
     numeros = set()
     for tarea in proyecto.get("tareas", []):
         nombre = tarea["nombre"]
-        if "Campaña" in nombre:
+        if f"- {etiqueta} " in nombre:
             try:
-                num = int(nombre.split("Campaña ")[-1])
-                if tipo == "evento" and "Propuesta de prospección" in nombre:
-                    numeros.add(num)
-                elif tipo == "campana_normal" and "prospecting canvas" in nombre:
-                    numeros.add(num)
+                num = int(nombre.split(f"{etiqueta} ")[-1])
+                numeros.add(num)
             except ValueError:
                 pass
     return len(numeros)
+
+
+def activar_proyecto(
+    proyecto: dict, proyectos: list[dict], duracion_semanas: int = 14
+) -> None:
+    proyecto["estado"] = "activo"
+    tareas = []
+
+    # 1. Tareas base
+    for tarea in TEMPLATE_BASE:
+        email = proyecto["equipo"].get(tarea["rol"], "")
+        tareas.append(
+            {
+                "nombre": tarea["nombre"],
+                "asignado_a": email,
+                "estado": "sin_iniciar",
+                "completado": False,
+            }
+        )
+
+    # 2. Tres campañas normales
+    for numero in range(1, 4):
+        tareas.extend(generar_tareas_campana(proyecto, "campana_normal", numero))
+
+    # 3. Chequeos cada 2 semanas
+    num_chequeos = (duracion_semanas - 3) // 2 + 1
+    for num_chequeo in range(1, num_chequeos):
+        semana = (num_chequeo * 2) + 1
+        if semana <= duracion_semanas:
+            tareas.append(
+                {
+                    "nombre": f"Chequeo {num_chequeo} (WU, FU, ADS, CLASES)",
+                    "asignado_a": proyecto["equipo"].get("account_manager", ""),
+                    "estado": "sin_iniciar",
+                    "completado": False,
+                    "semana": semana,
+                }
+            )
+
+    # 4. Tareas de cierre
+    tareas.append(
+        {
+            "nombre": "Aviso 1 mes para que finalice el proyecto",
+            "asignado_a": proyecto["equipo"].get("account_manager", ""),
+            "estado": "sin_iniciar",
+            "completado": False,
+            "semana": duracion_semanas - 5,
+        }
+    )
+    tareas.append(
+        {
+            "nombre": "Informe cierre interno",
+            "asignado_a": proyecto["equipo"].get("account_manager", ""),
+            "estado": "sin_iniciar",
+            "completado": False,
+            "semana": duracion_semanas,
+        }
+    )
+    tareas.append(
+        {
+            "nombre": "Informe cierre cliente",
+            "asignado_a": proyecto["equipo"].get("account_manager", ""),
+            "estado": "sin_iniciar",
+            "completado": False,
+            "semana": duracion_semanas,
+        }
+    )
+
+    proyecto["tareas"].extend(tareas)
+    guardar_proyectos(proyectos)
 
 
 # --- Datos de ejemplo ---
@@ -168,8 +278,8 @@ PROYECTOS_EJEMPLO = [
             "linkedin_url": "...",
             "ghl_url": "...",
         },
-        "estado": "activo",
-        "started_date": "2026-03-19",
+        "estado": "inactivo",
+        "started_date": "",
         "end_date": "",
         "equipo": {
             "pusher_coach": "clg@regrow.academy",
@@ -220,7 +330,7 @@ st.set_page_config(page_title="Regrow - Gestor de Proyectos", layout="wide")
 st.title("Regrow - Gestor de proyectos")
 st.caption("Panel interno del equipo")
 
-# Cargar datos (o usar los de ejemplo si no hay archivo)
+# Cargar datos
 proyectos = cargar_proyectos()
 if not proyectos:
     proyectos = PROYECTOS_EJEMPLO
@@ -234,7 +344,6 @@ filtro_estado = st.sidebar.selectbox(
     ["Todos", "Activo", "Inactivo", "Pausado"],
 )
 
-# Recolectar todos los emails del equipo
 todos_los_emails = set()
 for p in proyectos:
     for email in p["equipo"].values():
@@ -259,30 +368,34 @@ else:
 # --- Métricas ---
 activos = sum(1 for p in proyectos if p["estado"] == "activo")
 pausados = sum(1 for p in proyectos if p["estado"] == "pausado")
+inactivos = sum(1 for p in proyectos if p["estado"] == "inactivo")
 todas_tareas = []
 for p in proyectos:
     todas_tareas.extend(p.get("tareas", []))
 pendientes = sum(1 for t in todas_tareas if not t["completado"])
 completadas = sum(1 for t in todas_tareas if t["completado"])
 
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Proyectos activos", activos)
-col2.metric("Proyectos pausados", pausados)
-col3.metric("Tareas pendientes", pendientes)
-col4.metric("Tareas completadas", completadas)
+col1, col2, col3, col4, col5 = st.columns(5)
+col1.metric("Activos", activos)
+col2.metric("Pausados", pausados)
+col3.metric("Inactivos", inactivos)
+col4.metric("Tareas pendientes", pendientes)
+col5.metric("Tareas completadas", completadas)
 
 # --- Tabla de proyectos ---
 st.subheader("Proyectos")
 
 datos_tabla = []
 for p in proyectos_filtrados:
+    num_tareas = len(p.get("tareas", []))
     datos_tabla.append(
         {
             "Empresa": p["empresa"]["nombre"],
             "Contacto": f"{p['contacto']['nombre']} {p['contacto']['apellido']}",
-            "Account Manager": p["equipo"]["account_manager"] or "Sin asignar",
+            "AM": p["equipo"]["account_manager"] or "Sin asignar",
             "Estado": p["estado"].capitalize(),
-            "Última nota": p["notas"][-1]["texto"] if p["notas"] else "Sin notas",
+            "Tareas": num_tareas,
+            "Última nota": p["notas"][-1]["texto"] if p["notas"] else "",
         }
     )
 
@@ -291,31 +404,67 @@ if datos_tabla:
 else:
     st.info("No hay proyectos con ese filtro")
 
+# --- Activar proyecto ---
+proyectos_inactivos = [p for p in proyectos if p["estado"] == "inactivo"]
+
+if proyectos_inactivos:
+    st.subheader("Activar proyecto")
+
+    nombres_inactivos = [
+        f"{p['empresa']['nombre']} (ID: {p['id']})" for p in proyectos_inactivos
+    ]
+
+    with st.form("activar_proyecto", clear_on_submit=True):
+        proyecto_seleccionado = st.selectbox("Proyecto a activar", nombres_inactivos)
+        duracion = st.number_input(
+            "Duración del proyecto (semanas)", min_value=4, max_value=52, value=14
+        )
+        activar = st.form_submit_button("Activar y generar tareas")
+
+        if activar:
+            idx = nombres_inactivos.index(proyecto_seleccionado)
+            proyecto = proyectos_inactivos[idx]
+
+            roles_vacios = [
+                rol for rol, email in proyecto["equipo"].items() if not email
+            ]
+            if roles_vacios:
+                st.error(
+                    f"Asigná el equipo antes de activar. "
+                    f"Falta: {', '.join(roles_vacios)}"
+                )
+            else:
+                activar_proyecto(proyecto, proyectos, duracion)
+                num_tareas = len(proyecto["tareas"])
+                st.success(
+                    f"{proyecto['empresa']['nombre']} activado con {num_tareas} tareas"
+                )
+                st.rerun()
+
 # --- Tareas por persona ---
 st.subheader(
     f"Tareas - {', '.join(filtro_persona) if filtro_persona else 'Todos'}"
 )
-tareas = buscar_tareas_por_persona(proyectos, filtro_persona if filtro_persona else None)
+tareas = buscar_tareas_por_persona(
+    proyectos, filtro_persona if filtro_persona else None
+)
 if tareas:
     st.dataframe(tareas, use_container_width=True, hide_index=True)
 else:
     st.info("No hay tareas asignadas")
 
 # --- Agregar campaña a un proyecto ---
-st.subheader("Agregar campaña a proyecto")
-
 proyectos_activos = [p for p in proyectos if p["estado"] == "activo"]
 
 if proyectos_activos:
-    nombres_proyectos = [
+    st.subheader("Agregar campaña")
+
+    nombres_activos = [
         f"{p['empresa']['nombre']} (ID: {p['id']})" for p in proyectos_activos
     ]
 
     with st.form("nueva_campana", clear_on_submit=True):
-        proyecto_seleccionado = st.selectbox(
-            "Proyecto",
-            nombres_proyectos,
-        )
+        proyecto_seleccionado = st.selectbox("Proyecto", nombres_activos)
 
         tipo_campana = st.selectbox(
             "Tipo de campaña",
@@ -329,45 +478,26 @@ if proyectos_activos:
         enviado = st.form_submit_button("Generar tareas")
 
         if enviado:
-            # Encontrar el proyecto seleccionado
-            idx = nombres_proyectos.index(proyecto_seleccionado)
+            idx = nombres_activos.index(proyecto_seleccionado)
             proyecto = proyectos_activos[idx]
-
-            # Determinar tipo para el template
             tipo = "campana_normal" if tipo_campana == "Campaña normal" else "evento"
-
-            # Calcular número de campaña
             numero = contar_campanas(proyecto, tipo) + 1
 
-            # Verificar que el equipo esté asignado
-            roles_vacios = [
-                rol for rol, email in proyecto["equipo"].items() if not email
-            ]
-            if roles_vacios:
-                st.error(
-                    f"El proyecto no tiene asignado: {', '.join(roles_vacios)}. "
-                    "Asigná el equipo antes de generar tareas."
-                )
-            else:
-                nuevas_tareas = generar_tareas_campana(
-                    proyecto, tipo, numero, incluir_sp
-                )
+            nuevas_tareas = generar_tareas_campana(proyecto, tipo, numero, incluir_sp)
 
-                # Encontrar el proyecto en la lista original y agregar tareas
-                for p in proyectos:
-                    if p["id"] == proyecto["id"]:
-                        p["tareas"].extend(nuevas_tareas)
-                        break
+            for p in proyectos:
+                if p["id"] == proyecto["id"]:
+                    p["tareas"].extend(nuevas_tareas)
+                    break
 
-                guardar_proyectos(proyectos)
-                st.success(
-                    f"{tipo_campana} {numero} generada para "
-                    f"{proyecto['empresa']['nombre']} "
-                    f"({len(nuevas_tareas)} tareas)"
-                )
-                st.rerun()
-else:
-    st.info("No hay proyectos activos para agregar campañas")
+            guardar_proyectos(proyectos)
+            etiqueta = "Evento" if tipo == "evento" else "Campaña"
+            st.success(
+                f"{etiqueta} {numero} generada para "
+                f"{proyecto['empresa']['nombre']} "
+                f"({len(nuevas_tareas)} tareas)"
+            )
+            st.rerun()
 
 # --- Formulario para crear proyecto ---
 st.subheader("Crear nuevo proyecto")
@@ -385,9 +515,9 @@ with st.form("nuevo_proyecto", clear_on_submit=True):
         contacto_apellido = st.text_input("Apellido del contacto *")
         ghl_url = st.text_input("GHL URL")
 
-    enviado = st.form_submit_button("Crear proyecto")
+    enviado_proyecto = st.form_submit_button("Crear proyecto")
 
-    if enviado:
+    if enviado_proyecto:
         if not all([empresa_nombre, empresa_web, contacto_nombre, contacto_apellido]):
             st.error("Completá todos los campos obligatorios (*)")
         else:
