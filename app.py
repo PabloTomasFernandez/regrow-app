@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta
 
 import streamlit as st
 
@@ -6,78 +7,103 @@ import streamlit as st
 # --- Templates ---
 
 TEMPLATE_BASE = [
-    # Onboarding
-    {"nombre": "Onboarding", "rol": "pusher_coach"},
-    {"nombre": "Envío de mensaje post onboarding", "rol": "pusher_coach"},
-    {"nombre": "Envío de mensaje post onboarding", "rol": "coo"},
-    {"nombre": "Creación grupo Whatsapp/Slack", "rol": "account_manager"},
-    {"nombre": "Agendamiento de llamadas", "rol": "coo"},
-    {"nombre": "Alta SN", "rol": "coo"},
-    {"nombre": "Credenciales LinkedIn", "rol": "coo"},
-    {"nombre": "Alta Lemlist", "rol": "coo"},
-    {"nombre": "Credenciales Lemlist", "rol": "coo"},
-    {"nombre": "Envío de encuesta de satisfacción", "rol": "pusher_coach"},
-    # Boost de perfil
-    {"nombre": "Entrevista de contenido", "rol": "copy"},
-    {"nombre": "Propuesta de mejora de perfil", "rol": "copy"},
-    {"nombre": "Validación de mejora de perfil", "rol": "copy"},
-    {"nombre": "Implementación de mejora de perfil", "rol": "sdr"},
-    {"nombre": "Propuesta de ideas para posteos", "rol": "copy"},
-    {"nombre": "Validación de ideas para posteos", "rol": "copy"},
-    {"nombre": "Propuesta de posteos", "rol": "copy"},
-    {"nombre": "Validación de posteos", "rol": "copy"},
-    {"nombre": "Lanzamiento posteo 1", "rol": "sdr"},
-    {"nombre": "Lanzamiento posteo 2", "rol": "sdr"},
-    {"nombre": "Lanzamiento posteo 3", "rol": "sdr"},
-    {"nombre": "Lanzamiento posteo 4", "rol": "sdr"},
-    # Automatización inicial
-    {"nombre": "Reunión de automatizaciones", "rol": "automater"},
-    {"nombre": "Lemlist pago", "rol": "automater"},
-    {"nombre": "Conexión email a Lemlist", "rol": "automater"},
-    {"nombre": "Integración Lemlist-CRM", "rol": "automater"},
-    {"nombre": "Integración Lemlist-OpenAI", "rol": "automater"},
-    {"nombre": "Integración Lemlist-Looker", "rol": "automater"},
-    {"nombre": "Lista de ampliación de red", "rol": "automater"},
-    {"nombre": "Comienzo ampliación de red", "rol": "automater"},
-    # Prospección inicial
-    {"nombre": "Reunión estrategia comercial", "rol": "account_manager"},
-    {"nombre": "Envío informe matriz de prospección", "rol": "account_manager"},
-    {"nombre": "Armado búsqueda para FCA", "rol": "sdr"},
-    {"nombre": "Envío csv para FCA", "rol": "automater"},
-    {"nombre": "Limpieza csv para FCA", "rol": "automater"},
-    {"nombre": "Armado blacklist", "rol": "sdr"},
+    # Semana 1 - Onboarding
+    {"nombre": "Onboarding", "rol": "pusher_coach", "semana": 1},
+    {"nombre": "Envío de mensaje post onboarding", "rol": "pusher_coach", "semana": 1},
+    {"nombre": "Envío de mensaje post onboarding", "rol": "coo", "semana": 1},
+    {"nombre": "Creación grupo Whatsapp/Slack", "rol": "account_manager", "semana": 1},
+    {"nombre": "Agendamiento de llamadas", "rol": "coo", "semana": 1},
+    # Semana 2 - Altas y credenciales
+    {"nombre": "Alta SN", "rol": "coo", "semana": 2},
+    {"nombre": "Credenciales LinkedIn", "rol": "coo", "semana": 2},
+    {"nombre": "Alta Lemlist", "rol": "coo", "semana": 2},
+    {"nombre": "Credenciales Lemlist", "rol": "coo", "semana": 2},
+    {"nombre": "Entrevista de contenido", "rol": "copy", "semana": 2},
+    {"nombre": "Lista de ampliación de red", "rol": "automater", "semana": 2},
+    {"nombre": "Comienzo ampliación de red", "rol": "automater", "semana": 2},
+    # Semana 3 - Propuestas y setup
+    {"nombre": "Propuesta de mejora de perfil", "rol": "copy", "semana": 3},
+    {"nombre": "Propuesta de ideas para posteos", "rol": "copy", "semana": 3},
+    {"nombre": "Reunión estrategia comercial", "rol": "account_manager", "semana": 3},
+    {"nombre": "Envío informe matriz de prospección", "rol": "account_manager", "semana": 3},
+    {"nombre": "Reunión de automatizaciones", "rol": "automater", "semana": 3},
+    {"nombre": "Lemlist pago", "rol": "automater", "semana": 3},
+    {"nombre": "Conexión email a Lemlist", "rol": "automater", "semana": 3},
+    {"nombre": "Armado búsqueda para FCA", "rol": "sdr", "semana": 3},
+    {"nombre": "Envío csv para FCA", "rol": "automater", "semana": 3},
+    {"nombre": "Limpieza csv para FCA", "rol": "automater", "semana": 3},
+    # Semana 4 - Validaciones e implementación
+    {"nombre": "Validación de mejora de perfil", "rol": "copy", "semana": 4},
+    {"nombre": "Implementación de mejora de perfil", "rol": "sdr", "semana": 4},
+    {"nombre": "Validación de ideas para posteos", "rol": "copy", "semana": 4},
+    {"nombre": "Propuesta de posteos", "rol": "copy", "semana": 4},
+    {"nombre": "Integración Lemlist-CRM", "rol": "automater", "semana": 4},
+    {"nombre": "Integración Lemlist-OpenAI", "rol": "automater", "semana": 4},
+    {"nombre": "Integración Lemlist-Looker", "rol": "automater", "semana": 4},
+    {"nombre": "Armado blacklist", "rol": "sdr", "semana": 4},
+    # Semana 5 - Posteos
+    {"nombre": "Validación de posteos", "rol": "copy", "semana": 5},
+    {"nombre": "Lanzamiento posteo 1", "rol": "sdr", "semana": 5},
+    # Semana 6-8 - Posteos restantes
+    {"nombre": "Lanzamiento posteo 2", "rol": "sdr", "semana": 6},
+    {"nombre": "Lanzamiento posteo 3", "rol": "sdr", "semana": 7},
+    {"nombre": "Lanzamiento posteo 4", "rol": "sdr", "semana": 8},
+    # Semana 7 - Encuesta
+    {"nombre": "Envío de encuesta de satisfacción", "rol": "pusher_coach", "semana": 7},
 ]
 
+# Offset = semanas desde el inicio de la campaña
 TEMPLATES_CAMPANA = {
     "campana_normal": [
-        {"nombre": "Propuesta de prospecting canvas", "rol": "account_manager"},
-        {"nombre": "Validación de prospecting canvas", "rol": "account_manager"},
-        {"nombre": "Propuesta de prospección de cuentas", "rol": "sdr"},
-        {"nombre": "Validación de prospección de cuentas", "rol": "sdr"},
-        {"nombre": "Prospección de leads", "rol": "sdr"},
-        {"nombre": "Propuesta de secuencia de mensajes", "rol": "copy"},
-        {"nombre": "Validación de secuencia de mensajes", "rol": "copy"},
-        {"nombre": "Automatización conexiones Lemlist", "rol": "automater"},
-        {"nombre": "Automatización mensajes Lemlist", "rol": "automater"},
-        {"nombre": "Informe de resultados", "rol": "account_manager"},
+        {"nombre": "Propuesta de prospecting canvas", "rol": "account_manager", "offset": 0},
+        {"nombre": "Validación de prospecting canvas", "rol": "account_manager", "offset": 1},
+        {"nombre": "Propuesta de prospección de cuentas", "rol": "sdr", "offset": 1},
+        {"nombre": "Validación de prospección de cuentas", "rol": "sdr", "offset": 1},
+        {"nombre": "Propuesta de secuencia de mensajes", "rol": "copy", "offset": 1},
+        {"nombre": "Prospección de leads", "rol": "sdr", "offset": 2},
+        {"nombre": "Validación de secuencia de mensajes", "rol": "copy", "offset": 2},
+        {"nombre": "Automatización conexiones Lemlist", "rol": "automater", "offset": 2},
+        {"nombre": "Automatización mensajes Lemlist", "rol": "automater", "offset": 3},
+        {"nombre": "Informe de resultados", "rol": "account_manager", "offset": 4},
     ],
     "sales_pilot": [
-        {"nombre": "Prospección de cuentas SP", "rol": "sdr"},
-        {"nombre": "Cargar a Lemlist SP", "rol": "sdr"},
-        {"nombre": "Automatización Lemlist SP", "rol": "automater"},
-        {"nombre": "Informe de resultados SP", "rol": "account_manager"},
+        {"nombre": "Prospección de cuentas SP", "rol": "sdr", "offset": 1},
+        {"nombre": "Cargar a Lemlist SP", "rol": "sdr", "offset": 2},
+        {"nombre": "Automatización Lemlist SP", "rol": "automater", "offset": 2},
+        {"nombre": "Informe de resultados SP", "rol": "account_manager", "offset": 4},
     ],
     "evento": [
-        {"nombre": "Propuesta de prospección de cuentas", "rol": "sdr"},
-        {"nombre": "Validación de prospección de cuentas", "rol": "sdr"},
-        {"nombre": "Prospección de leads", "rol": "sdr"},
-        {"nombre": "Propuesta de secuencia de mensajes", "rol": "copy"},
-        {"nombre": "Validación de secuencia de mensajes", "rol": "copy"},
-        {"nombre": "Automatización conexiones Lemlist", "rol": "automater"},
-        {"nombre": "Automatización mensajes Lemlist", "rol": "automater"},
-        {"nombre": "Informe de resultados", "rol": "account_manager"},
+        {"nombre": "Propuesta de prospección de cuentas", "rol": "sdr", "offset": 0},
+        {"nombre": "Validación de prospección de cuentas", "rol": "sdr", "offset": 1},
+        {"nombre": "Prospección de leads", "rol": "sdr", "offset": 1},
+        {"nombre": "Propuesta de secuencia de mensajes", "rol": "copy", "offset": 1},
+        {"nombre": "Validación de secuencia de mensajes", "rol": "copy", "offset": 2},
+        {"nombre": "Automatización conexiones Lemlist", "rol": "automater", "offset": 2},
+        {"nombre": "Automatización mensajes Lemlist", "rol": "automater", "offset": 3},
+        {"nombre": "Informe de resultados", "rol": "account_manager", "offset": 4},
     ],
 }
+
+# Semanas de inicio de las 3 campañas iniciales
+CAMPANAS_INICIALES = [3, 7, 11]
+
+
+# --- Funciones de fechas ---
+
+
+def calcular_fecha_vencimiento(fecha_inicio: str, semana: int) -> str:
+    """Calcula la fecha de vencimiento a partir de la fecha de inicio y la semana."""
+    inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+    fecha = inicio + timedelta(weeks=semana - 1)
+    return fecha.strftime("%Y-%m-%d")
+
+
+def proximo_viernes(fecha: datetime) -> datetime:
+    """Devuelve el próximo viernes a partir de una fecha. Si ya es viernes, la misma."""
+    dias_hasta_viernes = (4 - fecha.weekday()) % 7
+    if dias_hasta_viernes == 0 and fecha.weekday() != 4:
+        dias_hasta_viernes = 7
+    return fecha + timedelta(days=dias_hasta_viernes)
 
 
 # --- Funciones de datos ---
@@ -112,6 +138,7 @@ def buscar_tareas_por_persona(
                         "tarea": tarea["nombre"],
                         "estado": tarea["estado"],
                         "semana": tarea.get("semana", ""),
+                        "fecha_vencimiento": tarea.get("fecha_vencimiento", ""),
                     }
                 )
     return tareas
@@ -159,6 +186,8 @@ def generar_tareas_campana(
     proyecto: dict,
     tipo: str,
     numero: int,
+    semana_inicio: int,
+    fecha_inicio_proyecto: str = "",
     incluir_sales_pilot: bool = False,
 ) -> list[dict]:
     plantillas = TEMPLATES_CAMPANA[tipo]
@@ -171,12 +200,18 @@ def generar_tareas_campana(
     tareas = []
     for tarea in plantillas:
         email = proyecto["equipo"].get(tarea["rol"], "")
+        semana = semana_inicio + tarea["offset"]
+        fecha = ""
+        if fecha_inicio_proyecto:
+            fecha = calcular_fecha_vencimiento(fecha_inicio_proyecto, semana)
         tareas.append(
             {
                 "nombre": f"{tarea['nombre']} - {etiqueta} {numero}",
                 "asignado_a": email,
                 "estado": "sin_iniciar",
-                "completado": False,
+                "semana": semana,
+                "fecha_vencimiento": fecha,
+                "fecha_realizado": "",
             }
         )
     return tareas
@@ -197,70 +232,77 @@ def contar_campanas(proyecto: dict, tipo: str) -> int:
 
 
 def activar_proyecto(
-    proyecto: dict, proyectos: list[dict], duracion_semanas: int = 14
+    proyecto: dict,
+    proyectos: list[dict],
+    fecha_inicio: str,
+    duracion_semanas: int = 14,
 ) -> None:
     proyecto["estado"] = "activo"
+    proyecto["started_date"] = fecha_inicio
     tareas = []
 
     # 1. Tareas base
     for tarea in TEMPLATE_BASE:
         email = proyecto["equipo"].get(tarea["rol"], "")
+        fecha = calcular_fecha_vencimiento(fecha_inicio, tarea["semana"])
         tareas.append(
             {
                 "nombre": tarea["nombre"],
                 "asignado_a": email,
                 "estado": "sin_iniciar",
-                "completado": False,
+                "semana": tarea["semana"],
+                "fecha_vencimiento": fecha,
+                "fecha_realizado": "",
             }
         )
 
-    # 2. Tres campañas normales
-    for numero in range(1, 4):
-        tareas.extend(generar_tareas_campana(proyecto, "campana_normal", numero))
+    # 2. Tres campañas normales (semanas 3, 7, 11)
+    for i, semana_inicio in enumerate(CAMPANAS_INICIALES):
+        numero = i + 1
+        tareas.extend(
+            generar_tareas_campana(
+                proyecto, "campana_normal", numero, semana_inicio, fecha_inicio
+            )
+        )
 
-    # 3. Chequeos cada 2 semanas
+    # 3. Chequeos cada 2 semanas (semanas 3, 5, 7, 9, 11)
     num_chequeos = (duracion_semanas - 3) // 2 + 1
-    for num_chequeo in range(1, num_chequeos):
+    for num_chequeo in range(1, num_chequeos + 1):
         semana = (num_chequeo * 2) + 1
         if semana <= duracion_semanas:
+            fecha = calcular_fecha_vencimiento(fecha_inicio, semana)
             tareas.append(
                 {
                     "nombre": f"Chequeo {num_chequeo} (WU, FU, ADS, CLASES)",
                     "asignado_a": proyecto["equipo"].get("account_manager", ""),
                     "estado": "sin_iniciar",
-                    "completado": False,
                     "semana": semana,
+                    "fecha_vencimiento": fecha,
+                    "fecha_realizado": "",
                 }
             )
 
     # 4. Tareas de cierre
-    tareas.append(
+    tareas_cierre = [
         {
             "nombre": "Aviso 1 mes para que finalice el proyecto",
-            "asignado_a": proyecto["equipo"].get("account_manager", ""),
-            "estado": "sin_iniciar",
-            "completado": False,
             "semana": duracion_semanas - 5,
-        }
-    )
-    tareas.append(
-        {
-            "nombre": "Informe cierre interno",
-            "asignado_a": proyecto["equipo"].get("account_manager", ""),
-            "estado": "sin_iniciar",
-            "completado": False,
-            "semana": duracion_semanas,
-        }
-    )
-    tareas.append(
-        {
-            "nombre": "Informe cierre cliente",
-            "asignado_a": proyecto["equipo"].get("account_manager", ""),
-            "estado": "sin_iniciar",
-            "completado": False,
-            "semana": duracion_semanas,
-        }
-    )
+        },
+        {"nombre": "Informe cierre interno", "semana": duracion_semanas},
+        {"nombre": "Informe cierre cliente", "semana": duracion_semanas},
+    ]
+    for tc in tareas_cierre:
+        fecha = calcular_fecha_vencimiento(fecha_inicio, tc["semana"])
+        tareas.append(
+            {
+                "nombre": tc["nombre"],
+                "asignado_a": proyecto["equipo"].get("account_manager", ""),
+                "estado": "sin_iniciar",
+                "semana": tc["semana"],
+                "fecha_vencimiento": fecha,
+                "fecha_realizado": "",
+            }
+        )
 
     proyecto["tareas"].extend(tareas)
     guardar_proyectos(proyectos)
@@ -372,8 +414,8 @@ inactivos = sum(1 for p in proyectos if p["estado"] == "inactivo")
 todas_tareas = []
 for p in proyectos:
     todas_tareas.extend(p.get("tareas", []))
-pendientes = sum(1 for t in todas_tareas if not t["completado"])
-completadas = sum(1 for t in todas_tareas if t["completado"])
+pendientes = sum(1 for t in todas_tareas if t["estado"] != "completado")
+completadas = sum(1 for t in todas_tareas if t["estado"] == "completado")
 
 col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Activos", activos)
@@ -395,6 +437,7 @@ for p in proyectos_filtrados:
             "AM": p["equipo"]["account_manager"] or "Sin asignar",
             "Estado": p["estado"].capitalize(),
             "Tareas": num_tareas,
+            "Inicio": p.get("started_date", ""),
             "Última nota": p["notas"][-1]["texto"] if p["notas"] else "",
         }
     )
@@ -416,6 +459,11 @@ if proyectos_inactivos:
 
     with st.form("activar_proyecto", clear_on_submit=True):
         proyecto_seleccionado = st.selectbox("Proyecto a activar", nombres_inactivos)
+        fecha_inicio_input = st.date_input(
+            "Fecha de inicio (viernes de la semana 1)",
+            value=proximo_viernes(datetime.now()),
+            help="Las fechas de vencimiento se calculan a partir de este viernes",
+        )
         duracion = st.number_input(
             "Duración del proyecto (semanas)", min_value=4, max_value=52, value=14
         )
@@ -434,10 +482,12 @@ if proyectos_inactivos:
                     f"Falta: {', '.join(roles_vacios)}"
                 )
             else:
-                activar_proyecto(proyecto, proyectos, duracion)
+                fecha_str = fecha_inicio_input.strftime("%Y-%m-%d")
+                activar_proyecto(proyecto, proyectos, fecha_str, duracion)
                 num_tareas = len(proyecto["tareas"])
                 st.success(
-                    f"{proyecto['empresa']['nombre']} activado con {num_tareas} tareas"
+                    f"{proyecto['empresa']['nombre']} activado con {num_tareas} tareas. "
+                    f"Inicio: {fecha_str}"
                 )
                 st.rerun()
 
@@ -471,6 +521,14 @@ if proyectos_activos:
             ["Campaña normal", "Evento"],
         )
 
+        semana_inicio = st.number_input(
+            "Semana de inicio de la campaña",
+            min_value=1,
+            max_value=52,
+            value=12,
+            help="La semana del proyecto en la que arranca esta campaña",
+        )
+
         incluir_sp = False
         if tipo_campana == "Campaña normal":
             incluir_sp = st.checkbox("Incluir Sales Pilot")
@@ -483,7 +541,11 @@ if proyectos_activos:
             tipo = "campana_normal" if tipo_campana == "Campaña normal" else "evento"
             numero = contar_campanas(proyecto, tipo) + 1
 
-            nuevas_tareas = generar_tareas_campana(proyecto, tipo, numero, incluir_sp)
+            fecha_inicio_proy = proyecto.get("started_date", "")
+
+            nuevas_tareas = generar_tareas_campana(
+                proyecto, tipo, numero, semana_inicio, fecha_inicio_proy, incluir_sp
+            )
 
             for p in proyectos:
                 if p["id"] == proyecto["id"]:
@@ -495,7 +557,7 @@ if proyectos_activos:
             st.success(
                 f"{etiqueta} {numero} generada para "
                 f"{proyecto['empresa']['nombre']} "
-                f"({len(nuevas_tareas)} tareas)"
+                f"({len(nuevas_tareas)} tareas, desde semana {semana_inicio})"
             )
             st.rerun()
 
