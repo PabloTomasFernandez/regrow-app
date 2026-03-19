@@ -279,3 +279,30 @@ def asignar_equipo(
             guardar_proyectos(proyectos)
             return True
     return False
+
+def agregar_sales_pilot(
+    proyecto: dict,
+    numero_campana: int,
+    semana_inicio: int,
+    fecha_inicio_proyecto: str = "",
+) -> list[dict]:
+    plantilla = TEMPLATES_CAMPANA["sales_pilot"]
+    tareas = []
+    for tarea in plantilla:
+        email = proyecto["equipo"].get(tarea["rol"], "")
+        semana = semana_inicio + tarea["offset"]
+        fecha = ""
+        if fecha_inicio_proyecto:
+            fecha = calcular_fecha_vencimiento(fecha_inicio_proyecto, semana)
+        tareas.append(
+            crear_tarea(
+                f"{tarea['nombre']} - Campaña {numero_campana}",
+                email,
+                semana,
+                fecha,
+            )
+        )
+    return tareas
+    # 2. Generar las tareas con "- Campaña {numero_campana}" en el nombre
+    # 3. Devolver la lista
+    

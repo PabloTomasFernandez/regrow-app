@@ -4,6 +4,7 @@ import streamlit as st
 
 from funciones import (
     activar_proyecto,
+    agregar_sales_pilot,
     asignar_equipo,
     buscar_tareas_por_persona,
     cambiar_estado_tarea,
@@ -110,9 +111,7 @@ filtro_persona = st.sidebar.multiselect(
 if filtro_estado == "Todos":
     proyectos_filtrados = proyectos
 else:
-    proyectos_filtrados = [
-        p for p in proyectos if p["estado"] == filtro_estado.lower()
-    ]
+    proyectos_filtrados = [p for p in proyectos if p["estado"] == filtro_estado.lower()]
 
 # --- Métricas ---
 activos = sum(1 for p in proyectos if p["estado"] == "activo")
@@ -156,7 +155,8 @@ else:
 
 # --- Asignar equipo ---
 proyectos_sin_equipo = [
-    p for p in proyectos
+    p
+    for p in proyectos
     if p["estado"] in ("inactivo", "activo")
     and any(not email for email in p["equipo"].values())
 ]
@@ -168,9 +168,7 @@ if proyectos_sin_equipo:
         f"{p['empresa']['nombre']} (ID: {p['id']})" for p in proyectos_sin_equipo
     ]
 
-    proyecto_equipo_sel = st.selectbox(
-        "Proyecto", nombres_sin_equipo, key="sel_equipo"
-    )
+    proyecto_equipo_sel = st.selectbox("Proyecto", nombres_sin_equipo, key="sel_equipo")
     idx = nombres_sin_equipo.index(proyecto_equipo_sel)
     proyecto_equipo = proyectos_sin_equipo[idx]
 
@@ -179,13 +177,19 @@ if proyectos_sin_equipo:
         col_izq, col_der = st.columns(2)
 
         with col_izq:
-            pusher_coach = st.text_input("Pusher Coach", value=equipo_actual.get("pusher_coach", ""))
-            account_manager = st.text_input("Account Manager", value=equipo_actual.get("account_manager", ""))
+            pusher_coach = st.text_input(
+                "Pusher Coach", value=equipo_actual.get("pusher_coach", "")
+            )
+            account_manager = st.text_input(
+                "Account Manager", value=equipo_actual.get("account_manager", "")
+            )
             copy = st.text_input("Copy", value=equipo_actual.get("copy", ""))
 
         with col_der:
             sdr = st.text_input("SDR", value=equipo_actual.get("sdr", ""))
-            automater = st.text_input("Automater", value=equipo_actual.get("automater", ""))
+            automater = st.text_input(
+                "Automater", value=equipo_actual.get("automater", "")
+            )
             coo = st.text_input("COO", value=equipo_actual.get("coo", ""))
 
         guardar_equipo = st.form_submit_button("Guardar equipo")
@@ -200,7 +204,9 @@ if proyectos_sin_equipo:
                 "coo": coo,
             }
             asignar_equipo(proyectos, proyecto_equipo["id"], nuevo_equipo)
-            st.success(f"Equipo actualizado para {proyecto_equipo['empresa']['nombre']}")
+            st.success(
+                f"Equipo actualizado para {proyecto_equipo['empresa']['nombre']}"
+            )
             st.rerun()
 
 # --- Activar proyecto ---
@@ -248,9 +254,7 @@ if proyectos_inactivos:
                 st.rerun()
 
 # --- Tareas por persona ---
-st.subheader(
-    f"Tareas - {', '.join(filtro_persona) if filtro_persona else 'Todos'}"
-)
+st.subheader(f"Tareas - {', '.join(filtro_persona) if filtro_persona else 'Todos'}")
 tareas = buscar_tareas_por_persona(
     proyectos, filtro_persona if filtro_persona else None
 )
@@ -268,9 +272,7 @@ if proyectos_activos:
     nombres_activos_tareas = [
         f"{p['empresa']['nombre']} (ID: {p['id']})" for p in proyectos_activos
     ]
-    proyecto_sel = st.selectbox(
-        "Proyecto", nombres_activos_tareas, key="sel_tareas"
-    )
+    proyecto_sel = st.selectbox("Proyecto", nombres_activos_tareas, key="sel_tareas")
     idx = nombres_activos_tareas.index(proyecto_sel)
     proyecto_actual = proyectos_activos[idx]
 
@@ -404,6 +406,52 @@ if proyectos_activos:
             )
             st.rerun()
 
+# --- Agregar Sales Pilot a campaña existente ---
+if proyectos_activos:
+    st.subheader("Agregar Sales Pilot")
+
+    nombres_activos_sp = [
+        f"{p['empresa']['nombre']} (ID: {p['id']})" for p in proyectos_activos
+    ]
+    proyecto_sp_sel = st.selectbox(
+        "Proyecto", nombres_activos_sp, key="sel_sp_proyecto"
+    )
+    idx = nombres_activos_sp.index(proyecto_sp_sel)
+    proyecto_sp = proyectos_activos[idx]
+
+    num_campanas = contar_campanas(proyecto_sp, "campana_normal")
+
+    if num_campanas > 0:
+        with st.form("agregar_sp", clear_on_submit=True):
+            campana_sel = st.selectbox(
+                "Campaña", list(range(1, num_campanas + 1)), key="sel_sp_campana"
+            )
+            semana_inicio_sp = st.number_input(
+                "Semana de inicio del Sales Pilot",
+                min_value=1,
+                max_value=52,
+                value=12,
+            )
+            enviado_sp = st.form_submit_button("Generar tareas SP")
+
+            if enviado_sp:
+                fecha_inicio_proy = proyecto_sp.get("started_date", "")
+                nuevas_tareas = agregar_sales_pilot(
+                    proyecto_sp, campana_sel, semana_inicio_sp, fecha_inicio_proy
+                )
+                for p in proyectos:
+                    if p["id"] == proyecto_sp["id"]:
+                        p["tareas"].extend(nuevas_tareas)
+                        break
+                guardar_proyectos(proyectos)
+                st.success(
+                    f"Sales Pilot agregado a Campaña {campana_sel} "
+                    f"({len(nuevas_tareas)} tareas)"
+                )
+                st.rerun()
+    else:
+        st.info("Este proyecto no tiene campañas todavía")
+
 # --- Formulario para crear proyecto ---
 st.subheader("Crear nuevo proyecto")
 
@@ -439,3 +487,6 @@ with st.form("nuevo_proyecto", clear_on_submit=True):
                 f"Proyecto creado: {nuevo['empresa']['nombre']} (ID: {nuevo['id']})"
             )
             st.rerun()
+
+
+
