@@ -8,9 +8,10 @@ import streamlit as st
 
 TEMPLATE_BASE = [
     # Semana 1 - Onboarding
-    {"nombre": "Onboarding", "rol": "pusher_coach", "semana": 1},
-    {"nombre": "Envío de mensaje post onboarding", "rol": "pusher_coach", "semana": 1},
-    {"nombre": "Envío de mensaje post onboarding", "rol": "coo", "semana": 1},
+    {"nombre": "Onboarding Pusher Coach", "rol": "pusher_coach", "semana": 1},
+    {"nombre": "Envío de mensaje post onboarding (Pusher Coach)", "rol": "pusher_coach", "semana": 1},
+    {"nombre": "Onboarding COO", "rol": "coo", "semana": 1},
+    {"nombre": "Envío de mensaje post onboarding (COO)", "rol": "coo", "semana": 1},
     {"nombre": "Creación grupo Whatsapp/Slack", "rol": "account_manager", "semana": 1},
     {"nombre": "Agendamiento de llamadas", "rol": "coo", "semana": 1},
     # Semana 2 - Altas y credenciales
