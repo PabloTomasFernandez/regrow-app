@@ -1,348 +1,21 @@
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import streamlit as st
 
+from funciones import (
+    activar_proyecto,
+    asignar_equipo,
+    buscar_tareas_por_persona,
+    cambiar_estado_tarea,
+    cargar_proyectos,
+    contar_campanas,
+    crear_proyecto,
+    generar_tareas_campana,
+    guardar_proyectos,
+    proximo_viernes,
+)
 
-# --- Templates ---
-
-TEMPLATE_BASE = [
-    # Semana 1 - Onboarding
-    {"nombre": "Onboarding Pusher Coach", "rol": "pusher_coach", "semana": 1},
-    {"nombre": "Envío de mensaje post onboarding (Pusher Coach)", "rol": "pusher_coach", "semana": 1},
-    {"nombre": "Onboarding COO", "rol": "coo", "semana": 1},
-    {"nombre": "Envío de mensaje post onboarding (COO)", "rol": "coo", "semana": 1},
-    {"nombre": "Creación grupo Whatsapp/Slack", "rol": "account_manager", "semana": 1},
-    {"nombre": "Agendamiento de llamadas", "rol": "coo", "semana": 1},
-    # Semana 2 - Altas y credenciales
-    {"nombre": "Alta SN", "rol": "coo", "semana": 2},
-    {"nombre": "Credenciales LinkedIn", "rol": "coo", "semana": 2},
-    {"nombre": "Alta Lemlist", "rol": "coo", "semana": 2},
-    {"nombre": "Credenciales Lemlist", "rol": "coo", "semana": 2},
-    {"nombre": "Entrevista de contenido", "rol": "copy", "semana": 2},
-    {"nombre": "Lista de ampliación de red", "rol": "automater", "semana": 2},
-    {"nombre": "Comienzo ampliación de red", "rol": "automater", "semana": 2},
-    # Semana 3 - Propuestas y setup
-    {"nombre": "Propuesta de mejora de perfil", "rol": "copy", "semana": 3},
-    {"nombre": "Propuesta de ideas para posteos", "rol": "copy", "semana": 3},
-    {"nombre": "Reunión estrategia comercial", "rol": "account_manager", "semana": 3},
-    {"nombre": "Envío informe matriz de prospección", "rol": "account_manager", "semana": 3},
-    {"nombre": "Reunión de automatizaciones", "rol": "automater", "semana": 3},
-    {"nombre": "Lemlist pago", "rol": "automater", "semana": 3},
-    {"nombre": "Conexión email a Lemlist", "rol": "automater", "semana": 3},
-    {"nombre": "Armado búsqueda para FCA", "rol": "sdr", "semana": 3},
-    {"nombre": "Envío csv para FCA", "rol": "automater", "semana": 3},
-    {"nombre": "Limpieza csv para FCA", "rol": "automater", "semana": 3},
-    # Semana 4 - Validaciones e implementación
-    {"nombre": "Validación de mejora de perfil", "rol": "copy", "semana": 4},
-    {"nombre": "Implementación de mejora de perfil", "rol": "sdr", "semana": 4},
-    {"nombre": "Validación de ideas para posteos", "rol": "copy", "semana": 4},
-    {"nombre": "Propuesta de posteos", "rol": "copy", "semana": 4},
-    {"nombre": "Integración Lemlist-CRM", "rol": "automater", "semana": 4},
-    {"nombre": "Integración Lemlist-OpenAI", "rol": "automater", "semana": 4},
-    {"nombre": "Integración Lemlist-Looker", "rol": "automater", "semana": 4},
-    {"nombre": "Armado blacklist", "rol": "sdr", "semana": 4},
-    # Semana 5 - Posteos
-    {"nombre": "Validación de posteos", "rol": "copy", "semana": 5},
-    {"nombre": "Lanzamiento posteo 1", "rol": "sdr", "semana": 5},
-    # Semana 6-8 - Posteos restantes
-    {"nombre": "Lanzamiento posteo 2", "rol": "sdr", "semana": 6},
-    {"nombre": "Lanzamiento posteo 3", "rol": "sdr", "semana": 7},
-    {"nombre": "Lanzamiento posteo 4", "rol": "sdr", "semana": 8},
-    # Semana 7 - Encuesta
-    {"nombre": "Envío de encuesta de satisfacción", "rol": "pusher_coach", "semana": 7},
-]
-
-TEMPLATES_CAMPANA = {
-    "campana_normal": [
-        {"nombre": "Propuesta de prospecting canvas", "rol": "account_manager", "offset": 0},
-        {"nombre": "Validación de prospecting canvas", "rol": "account_manager", "offset": 1},
-        {"nombre": "Propuesta de prospección de cuentas", "rol": "sdr", "offset": 1},
-        {"nombre": "Validación de prospección de cuentas", "rol": "account_manager", "offset": 1},
-        {"nombre": "Propuesta de secuencia de mensajes", "rol": "copy", "offset": 1},
-        {"nombre": "Prospección de leads", "rol": "sdr", "offset": 2},
-        {"nombre": "Validación de secuencia de mensajes", "rol": "copy", "offset": 2},
-        {"nombre": "Automatización conexiones Lemlist", "rol": "automater", "offset": 2},
-        {"nombre": "Automatización mensajes Lemlist", "rol": "automater", "offset": 3},
-        {"nombre": "Informe de resultados", "rol": "account_manager", "offset": 4},
-    ],
-    "sales_pilot": [
-        {"nombre": "Prospección de cuentas SP", "rol": "sdr", "offset": 1},
-        {"nombre": "Cargar a Lemlist SP", "rol": "sdr", "offset": 2},
-        {"nombre": "Automatización Lemlist SP", "rol": "automater", "offset": 2},
-        {"nombre": "Informe de resultados SP", "rol": "account_manager", "offset": 4},
-    ],
-    "evento": [
-        {"nombre": "Propuesta de prospección de cuentas", "rol": "sdr", "offset": 0},
-        {"nombre": "Validación de prospección de cuentas", "rol": "account_manager", "offset": 1},
-        {"nombre": "Prospección de leads", "rol": "sdr", "offset": 1},
-        {"nombre": "Propuesta de secuencia de mensajes", "rol": "copy", "offset": 1},
-        {"nombre": "Validación de secuencia de mensajes", "rol": "copy", "offset": 2},
-        {"nombre": "Automatización conexiones Lemlist", "rol": "automater", "offset": 2},
-        {"nombre": "Automatización mensajes Lemlist", "rol": "automater", "offset": 3},
-        {"nombre": "Informe de resultados", "rol": "account_manager", "offset": 4},
-    ],
-}
-
-CAMPANAS_INICIALES = [3, 7, 11]
-
-
-# --- Funciones de fechas ---
-
-
-def calcular_fecha_vencimiento(fecha_onboarding: str, semana: int) -> str:
-    """Replica la fórmula del Excel: $G$4 + 7*(semana-1) + (5 - WEEKDAY($G$4, 2))"""
-    inicio = datetime.strptime(fecha_onboarding, "%Y-%m-%d")
-    dias_hasta_viernes = (4 - inicio.weekday()) % 7
-    fecha = inicio + timedelta(days=7 * (semana - 1) + dias_hasta_viernes)
-    return fecha.strftime("%Y-%m-%d")
-
-
-def proximo_viernes(fecha: datetime) -> datetime:
-    dias_hasta_viernes = (4 - fecha.weekday()) % 7
-    if dias_hasta_viernes == 0 and fecha.weekday() != 4:
-        dias_hasta_viernes = 7
-    return fecha + timedelta(days=dias_hasta_viernes)
-
-
-# --- Funciones de datos ---
-
-
-def guardar_proyectos(proyectos: list[dict], ruta: str = "proyectos.json") -> None:
-    if proyectos:
-        with open(ruta, "w") as archivo:
-            json.dump(proyectos, archivo, indent=2, ensure_ascii=False)
-    else:
-        st.warning("No hay proyectos por guardar")
-
-
-def cargar_proyectos(ruta: str = "proyectos.json") -> list[dict]:
-    try:
-        with open(ruta, "r") as archivo:
-            return json.load(archivo)
-    except FileNotFoundError:
-        return []
-
-
-def buscar_tareas_por_persona(
-    proyectos: list[dict], personas: list[str] = None
-) -> list[dict]:
-    tareas = []
-    for proyecto in proyectos:
-        for tarea in proyecto.get("tareas", []):
-            if not personas or tarea["asignado_a"] in personas:
-                tareas.append(
-                    {
-                        "empresa": proyecto["empresa"]["nombre"],
-                        "tarea": tarea["nombre"],
-                        "estado": tarea["estado"],
-                        "semana": tarea.get("semana", ""),
-                        "fecha_vencimiento": tarea.get("fecha_vencimiento", ""),
-                    }
-                )
-    return tareas
-
-
-def crear_proyecto(
-    proyectos: list[dict],
-    empresa_nombre: str,
-    empresa_web: str,
-    contacto_nombre: str,
-    contacto_apellido: str,
-    linkedin_url: str = "",
-    ghl_url: str = "",
-) -> dict:
-    proyecto_id = max((p["id"] for p in proyectos), default=0) + 1
-    new_project = {
-        "id": proyecto_id,
-        "empresa": {"nombre": empresa_nombre, "web": empresa_web},
-        "contacto": {
-            "nombre": contacto_nombre,
-            "apellido": contacto_apellido,
-            "linkedin_url": linkedin_url,
-            "ghl_url": ghl_url,
-        },
-        "estado": "inactivo",
-        "started_date": "",
-        "end_date": "",
-        "equipo": {
-            "pusher_coach": "",
-            "account_manager": "",
-            "copy": "",
-            "sdr": "",
-            "automater": "",
-            "coo": "",
-        },
-        "tareas": [],
-        "notas": [],
-    }
-    proyectos.append(new_project)
-    guardar_proyectos(proyectos)
-    return new_project
-
-
-def crear_tarea(nombre: str, email: str, semana: int, fecha: str) -> dict:
-    """Crea un diccionario de tarea con todos los campos estándar."""
-    return {
-        "nombre": nombre,
-        "asignado_a": email,
-        "estado": "sin_iniciar",
-        "semana": semana,
-        "fecha_vencimiento": fecha,
-        "fecha_realizado": "",
-        "comentarios": [],
-    }
-
-
-def generar_tareas_campana(
-    proyecto: dict,
-    tipo: str,
-    numero: int,
-    semana_inicio: int,
-    fecha_inicio_proyecto: str = "",
-    incluir_sales_pilot: bool = False,
-) -> list[dict]:
-    plantillas = TEMPLATES_CAMPANA[tipo]
-
-    if tipo == "campana_normal" and incluir_sales_pilot:
-        plantillas = plantillas + TEMPLATES_CAMPANA["sales_pilot"]
-
-    etiqueta = "Evento" if tipo == "evento" else "Campaña"
-
-    tareas = []
-    for tarea in plantillas:
-        email = proyecto["equipo"].get(tarea["rol"], "")
-        semana = semana_inicio + tarea["offset"]
-        fecha = ""
-        if fecha_inicio_proyecto:
-            fecha = calcular_fecha_vencimiento(fecha_inicio_proyecto, semana)
-        tareas.append(
-            crear_tarea(
-                f"{tarea['nombre']} - {etiqueta} {numero}",
-                email,
-                semana,
-                fecha,
-            )
-        )
-    return tareas
-
-
-def contar_campanas(proyecto: dict, tipo: str) -> int:
-    etiqueta = "Evento" if tipo == "evento" else "Campaña"
-    numeros = set()
-    for tarea in proyecto.get("tareas", []):
-        nombre = tarea["nombre"]
-        if f"- {etiqueta} " in nombre:
-            try:
-                num = int(nombre.split(f"{etiqueta} ")[-1])
-                numeros.add(num)
-            except ValueError:
-                pass
-    return len(numeros)
-
-
-def activar_proyecto(
-    proyecto: dict,
-    proyectos: list[dict],
-    fecha_inicio: str,
-    duracion_semanas: int = 14,
-) -> None:
-    proyecto["estado"] = "activo"
-    proyecto["started_date"] = fecha_inicio
-    tareas = []
-
-    # 1. Tareas base
-    for tarea in TEMPLATE_BASE:
-        email = proyecto["equipo"].get(tarea["rol"], "")
-        fecha = calcular_fecha_vencimiento(fecha_inicio, tarea["semana"])
-        tareas.append(crear_tarea(tarea["nombre"], email, tarea["semana"], fecha))
-
-    # Marcar Onboarding COO con la fecha real
-    for tarea in tareas:
-        if tarea["nombre"] == "Onboarding COO":
-            tarea["fecha_vencimiento"] = fecha_inicio
-            tarea["fecha_realizado"] = fecha_inicio
-            tarea["estado"] = "completado"
-            break
-
-    # 2. Tres campañas normales (semanas 3, 7, 11)
-    for i, semana_inicio in enumerate(CAMPANAS_INICIALES):
-        numero = i + 1
-        tareas.extend(
-            generar_tareas_campana(
-                proyecto, "campana_normal", numero, semana_inicio, fecha_inicio
-            )
-        )
-
-    # 3. Chequeos dinámicos
-    num_chequeos = (duracion_semanas - 3) // 2 + 1
-    for num_chequeo in range(1, num_chequeos):
-        semana = (num_chequeo * 2) + 1
-        if semana <= duracion_semanas:
-            fecha = calcular_fecha_vencimiento(fecha_inicio, semana)
-            tareas.append(
-                crear_tarea(
-                    f"Chequeo {num_chequeo} (WU, FU, ADS, CLASES)",
-                    proyecto["equipo"].get("account_manager", ""),
-                    semana,
-                    fecha,
-                )
-            )
-
-    # 4. Tareas de cierre
-    tareas_cierre = [
-        {"nombre": "Aviso 1 mes para que finalice el proyecto", "semana": duracion_semanas - 5},
-        {"nombre": "Informe cierre interno", "semana": duracion_semanas},
-        {"nombre": "Informe cierre cliente", "semana": duracion_semanas},
-    ]
-    for tc in tareas_cierre:
-        fecha = calcular_fecha_vencimiento(fecha_inicio, tc["semana"])
-        tareas.append(
-            crear_tarea(
-                tc["nombre"],
-                proyecto["equipo"].get("account_manager", ""),
-                tc["semana"],
-                fecha,
-            )
-        )
-
-    proyecto["tareas"].extend(tareas)
-    guardar_proyectos(proyectos)
-
-
-def cambiar_estado_tarea(
-    proyectos: list[dict],
-    proyecto_id: int,
-    nombre_tarea: str,
-    nuevo_estado: str,
-    comentario: str = "",
-    autor: str = "",
-    fecha_realizado: str = "",
-) -> bool:
-    for proyecto in proyectos:
-        if proyecto["id"] == proyecto_id:
-            for tarea in proyecto["tareas"]:
-                if tarea["nombre"] == nombre_tarea:
-                    tarea["estado"] = nuevo_estado
-                    if nuevo_estado == "completado":
-                        tarea["fecha_realizado"] = (
-                            fecha_realizado
-                            or datetime.now().strftime("%Y-%m-%d")
-                        )
-                    if comentario:
-                        tarea["comentarios"].append(
-                            {
-                                "autor": autor,
-                                "fecha": datetime.now().strftime("%Y-%m-%d"),
-                                "texto": comentario,
-                            }
-                        )
-                    guardar_proyectos(proyectos)
-                    return True
-    return False
-
-
-# --- Datos de ejemplo ---
+ROLES = ["pusher_coach", "account_manager", "copy", "sdr", "automater", "coo"]
 
 PROYECTOS_EJEMPLO = [
     {
@@ -400,7 +73,7 @@ PROYECTOS_EJEMPLO = [
 ]
 
 
-# --- App de Streamlit ---
+# --- App ---
 
 st.set_page_config(page_title="Regrow - Gestor de Proyectos", layout="wide")
 st.title("Regrow - Gestor de proyectos")
@@ -480,6 +153,55 @@ if datos_tabla:
     st.dataframe(datos_tabla, use_container_width=True, hide_index=True)
 else:
     st.info("No hay proyectos con ese filtro")
+
+# --- Asignar equipo ---
+proyectos_sin_equipo = [
+    p for p in proyectos
+    if p["estado"] in ("inactivo", "activo")
+    and any(not email for email in p["equipo"].values())
+]
+
+if proyectos_sin_equipo:
+    st.subheader("Asignar equipo")
+
+    nombres_sin_equipo = [
+        f"{p['empresa']['nombre']} (ID: {p['id']})" for p in proyectos_sin_equipo
+    ]
+
+    proyecto_equipo_sel = st.selectbox(
+        "Proyecto", nombres_sin_equipo, key="sel_equipo"
+    )
+    idx = nombres_sin_equipo.index(proyecto_equipo_sel)
+    proyecto_equipo = proyectos_sin_equipo[idx]
+
+    with st.form("asignar_equipo", clear_on_submit=False):
+        equipo_actual = proyecto_equipo["equipo"]
+        col_izq, col_der = st.columns(2)
+
+        with col_izq:
+            pusher_coach = st.text_input("Pusher Coach", value=equipo_actual.get("pusher_coach", ""))
+            account_manager = st.text_input("Account Manager", value=equipo_actual.get("account_manager", ""))
+            copy = st.text_input("Copy", value=equipo_actual.get("copy", ""))
+
+        with col_der:
+            sdr = st.text_input("SDR", value=equipo_actual.get("sdr", ""))
+            automater = st.text_input("Automater", value=equipo_actual.get("automater", ""))
+            coo = st.text_input("COO", value=equipo_actual.get("coo", ""))
+
+        guardar_equipo = st.form_submit_button("Guardar equipo")
+
+        if guardar_equipo:
+            nuevo_equipo = {
+                "pusher_coach": pusher_coach,
+                "account_manager": account_manager,
+                "copy": copy,
+                "sdr": sdr,
+                "automater": automater,
+                "coo": coo,
+            }
+            asignar_equipo(proyectos, proyecto_equipo["id"], nuevo_equipo)
+            st.success(f"Equipo actualizado para {proyecto_equipo['empresa']['nombre']}")
+            st.rerun()
 
 # --- Activar proyecto ---
 proyectos_inactivos = [p for p in proyectos if p["estado"] == "inactivo"]
@@ -601,8 +323,8 @@ if proyectos_activos:
                     st.rerun()
                 else:
                     st.error("No se encontró la tarea")
-            else:
-                st.info("Este proyecto no tiene tareas")
+    else:
+        st.info("Este proyecto no tiene tareas")
 
 # --- Agregar campaña a un proyecto ---
 if proyectos_activos:
