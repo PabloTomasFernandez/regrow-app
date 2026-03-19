@@ -52,13 +52,12 @@ TEMPLATE_BASE = [
     {"nombre": "Envío de encuesta de satisfacción", "rol": "pusher_coach", "semana": 7},
 ]
 
-# Offset = semanas desde el inicio de la campaña
 TEMPLATES_CAMPANA = {
     "campana_normal": [
         {"nombre": "Propuesta de prospecting canvas", "rol": "account_manager", "offset": 0},
         {"nombre": "Validación de prospecting canvas", "rol": "account_manager", "offset": 1},
         {"nombre": "Propuesta de prospección de cuentas", "rol": "sdr", "offset": 1},
-        {"nombre": "Validación de prospección de cuentas", "rol": "sdr", "offset": 1},
+        {"nombre": "Validación de prospección de cuentas", "rol": "account_manager", "offset": 1},
         {"nombre": "Propuesta de secuencia de mensajes", "rol": "copy", "offset": 1},
         {"nombre": "Prospección de leads", "rol": "sdr", "offset": 2},
         {"nombre": "Validación de secuencia de mensajes", "rol": "copy", "offset": 2},
@@ -74,7 +73,7 @@ TEMPLATES_CAMPANA = {
     ],
     "evento": [
         {"nombre": "Propuesta de prospección de cuentas", "rol": "sdr", "offset": 0},
-        {"nombre": "Validación de prospección de cuentas", "rol": "sdr", "offset": 1},
+        {"nombre": "Validación de prospección de cuentas", "rol": "account_manager", "offset": 1},
         {"nombre": "Prospección de leads", "rol": "sdr", "offset": 1},
         {"nombre": "Propuesta de secuencia de mensajes", "rol": "copy", "offset": 1},
         {"nombre": "Validación de secuencia de mensajes", "rol": "copy", "offset": 2},
@@ -84,22 +83,21 @@ TEMPLATES_CAMPANA = {
     ],
 }
 
-# Semanas de inicio de las 3 campañas iniciales
 CAMPANAS_INICIALES = [3, 7, 11]
 
 
 # --- Funciones de fechas ---
 
 
-def calcular_fecha_vencimiento(fecha_inicio: str, semana: int) -> str:
-    """Calcula la fecha de vencimiento a partir de la fecha de inicio y la semana."""
-    inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
-    fecha = inicio + timedelta(weeks=semana - 1)
+def calcular_fecha_vencimiento(fecha_onboarding: str, semana: int) -> str:
+    """Replica la fórmula del Excel: $G$4 + 7*(semana-1) + (5 - WEEKDAY($G$4, 2))"""
+    inicio = datetime.strptime(fecha_onboarding, "%Y-%m-%d")
+    dias_hasta_viernes = (4 - inicio.weekday()) % 7
+    fecha = inicio + timedelta(days=7 * (semana - 1) + dias_hasta_viernes)
     return fecha.strftime("%Y-%m-%d")
 
 
 def proximo_viernes(fecha: datetime) -> datetime:
-    """Devuelve el próximo viernes a partir de una fecha. Si ya es viernes, la misma."""
     dias_hasta_viernes = (4 - fecha.weekday()) % 7
     if dias_hasta_viernes == 0 and fecha.weekday() != 4:
         dias_hasta_viernes = 7
@@ -182,6 +180,19 @@ def crear_proyecto(
     return new_project
 
 
+def crear_tarea(nombre: str, email: str, semana: int, fecha: str) -> dict:
+    """Crea un diccionario de tarea con todos los campos estándar."""
+    return {
+        "nombre": nombre,
+        "asignado_a": email,
+        "estado": "sin_iniciar",
+        "semana": semana,
+        "fecha_vencimiento": fecha,
+        "fecha_realizado": "",
+        "comentarios": [],
+    }
+
+
 def generar_tareas_campana(
     proyecto: dict,
     tipo: str,
@@ -205,14 +216,12 @@ def generar_tareas_campana(
         if fecha_inicio_proyecto:
             fecha = calcular_fecha_vencimiento(fecha_inicio_proyecto, semana)
         tareas.append(
-            {
-                "nombre": f"{tarea['nombre']} - {etiqueta} {numero}",
-                "asignado_a": email,
-                "estado": "sin_iniciar",
-                "semana": semana,
-                "fecha_vencimiento": fecha,
-                "fecha_realizado": "",
-            }
+            crear_tarea(
+                f"{tarea['nombre']} - {etiqueta} {numero}",
+                email,
+                semana,
+                fecha,
+            )
         )
     return tareas
 
@@ -245,16 +254,7 @@ def activar_proyecto(
     for tarea in TEMPLATE_BASE:
         email = proyecto["equipo"].get(tarea["rol"], "")
         fecha = calcular_fecha_vencimiento(fecha_inicio, tarea["semana"])
-        tareas.append(
-            {
-                "nombre": tarea["nombre"],
-                "asignado_a": email,
-                "estado": "sin_iniciar",
-                "semana": tarea["semana"],
-                "fecha_vencimiento": fecha,
-                "fecha_realizado": "",
-            }
-        )
+        tareas.append(crear_tarea(tarea["nombre"], email, tarea["semana"], fecha))
 
     # 2. Tres campañas normales (semanas 3, 7, 11)
     for i, semana_inicio in enumerate(CAMPANAS_INICIALES):
@@ -265,43 +265,36 @@ def activar_proyecto(
             )
         )
 
-    # 3. Chequeos cada 2 semanas (semanas 3, 5, 7, 9, 11)
+    # 3. Chequeos dinámicos
     num_chequeos = (duracion_semanas - 3) // 2 + 1
-    for num_chequeo in range(1, num_chequeos + 1):
+    for num_chequeo in range(1, num_chequeos):
         semana = (num_chequeo * 2) + 1
         if semana <= duracion_semanas:
             fecha = calcular_fecha_vencimiento(fecha_inicio, semana)
             tareas.append(
-                {
-                    "nombre": f"Chequeo {num_chequeo} (WU, FU, ADS, CLASES)",
-                    "asignado_a": proyecto["equipo"].get("account_manager", ""),
-                    "estado": "sin_iniciar",
-                    "semana": semana,
-                    "fecha_vencimiento": fecha,
-                    "fecha_realizado": "",
-                }
+                crear_tarea(
+                    f"Chequeo {num_chequeo} (WU, FU, ADS, CLASES)",
+                    proyecto["equipo"].get("account_manager", ""),
+                    semana,
+                    fecha,
+                )
             )
 
     # 4. Tareas de cierre
     tareas_cierre = [
-        {
-            "nombre": "Aviso 1 mes para que finalice el proyecto",
-            "semana": duracion_semanas - 5,
-        },
+        {"nombre": "Aviso 1 mes para que finalice el proyecto", "semana": duracion_semanas - 5},
         {"nombre": "Informe cierre interno", "semana": duracion_semanas},
         {"nombre": "Informe cierre cliente", "semana": duracion_semanas},
     ]
     for tc in tareas_cierre:
         fecha = calcular_fecha_vencimiento(fecha_inicio, tc["semana"])
         tareas.append(
-            {
-                "nombre": tc["nombre"],
-                "asignado_a": proyecto["equipo"].get("account_manager", ""),
-                "estado": "sin_iniciar",
-                "semana": tc["semana"],
-                "fecha_vencimiento": fecha,
-                "fecha_realizado": "",
-            }
+            crear_tarea(
+                tc["nombre"],
+                proyecto["equipo"].get("account_manager", ""),
+                tc["semana"],
+                fecha,
+            )
         )
 
     proyecto["tareas"].extend(tareas)
@@ -460,9 +453,9 @@ if proyectos_inactivos:
     with st.form("activar_proyecto", clear_on_submit=True):
         proyecto_seleccionado = st.selectbox("Proyecto a activar", nombres_inactivos)
         fecha_inicio_input = st.date_input(
-            "Fecha de inicio (viernes de la semana 1)",
+            "Fecha del Onboarding (referencia para todas las fechas)",
             value=proximo_viernes(datetime.now()),
-            help="Las fechas de vencimiento se calculan a partir de este viernes",
+            help="Fecha del Onboarding Fran. Las fechas de vencimiento se calculan con el viernes de cada semana.",
         )
         duracion = st.number_input(
             "Duración del proyecto (semanas)", min_value=4, max_value=52, value=14
@@ -526,7 +519,7 @@ if proyectos_activos:
             min_value=1,
             max_value=52,
             value=12,
-            help="La semana del proyecto en la que arranca esta campaña",
+            help="Semana del proyecto en la que arranca esta campaña",
         )
 
         incluir_sp = False
