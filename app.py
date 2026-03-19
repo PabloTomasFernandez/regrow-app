@@ -3,6 +3,40 @@ import json
 import streamlit as st
 
 
+# --- Templates de campañas ---
+
+TEMPLATES = {
+    "campana_normal": [
+        {"nombre": "Propuesta de prospecting canvas", "rol": "account_manager"},
+        {"nombre": "Validación de prospecting canvas", "rol": "account_manager"},
+        {"nombre": "Propuesta de prospección de cuentas", "rol": "sdr"},
+        {"nombre": "Validación de prospección de cuentas", "rol": "sdr"},
+        {"nombre": "Prospección de leads", "rol": "sdr"},
+        {"nombre": "Propuesta de secuencia de mensajes", "rol": "copy"},
+        {"nombre": "Validación de secuencia de mensajes", "rol": "copy"},
+        {"nombre": "Automatización conexiones Lemlist", "rol": "automater"},
+        {"nombre": "Automatización mensajes Lemlist", "rol": "automater"},
+        {"nombre": "Informe de resultados", "rol": "account_manager"},
+    ],
+    "sales_pilot": [
+        {"nombre": "Prospección de cuentas SP", "rol": "sdr"},
+        {"nombre": "Cargar a Lemlist SP", "rol": "sdr"},
+        {"nombre": "Automatización Lemlist SP", "rol": "automater"},
+        {"nombre": "Informe de resultados SP", "rol": "account_manager"},
+    ],
+    "evento": [
+        {"nombre": "Propuesta de prospección de cuentas", "rol": "sdr"},
+        {"nombre": "Validación de prospección de cuentas", "rol": "sdr"},
+        {"nombre": "Prospección de leads", "rol": "sdr"},
+        {"nombre": "Propuesta de secuencia de mensajes", "rol": "copy"},
+        {"nombre": "Validación de secuencia de mensajes", "rol": "copy"},
+        {"nombre": "Automatización conexiones Lemlist", "rol": "automater"},
+        {"nombre": "Automatización mensajes Lemlist", "rol": "automater"},
+        {"nombre": "Informe de resultados", "rol": "account_manager"},
+    ],
+}
+
+
 # --- Funciones de datos ---
 
 
@@ -23,19 +57,19 @@ def cargar_proyectos(ruta: str = "proyectos.json") -> list[dict]:
 
 
 def buscar_tareas_por_persona(
-    proyectos: list[dict], persona: str = "Todos"
+    proyectos: list[dict], personas: list[str] = None
 ) -> list[dict]:
     tareas = []
     for proyecto in proyectos:
         for tarea in proyecto.get("tareas", []):
-            if persona == "Todos" or tarea["asignado_a"] == persona:
+            if not personas or tarea["asignado_a"] in personas:
                 tareas.append(
                     {
                         "empresa": proyecto["empresa"]["nombre"],
                         "tarea": tarea["nombre"],
                         "estado": tarea["estado"],
-                        "fecha_vencimiento": tarea["fecha_vencimiento"],
-                        "semana": tarea["semana"],
+                        "fecha_vencimiento": tarea.get("fecha_vencimiento", ""),
+                        "semana": tarea.get("semana", ""),
                     }
                 )
     return tareas
@@ -79,6 +113,49 @@ def crear_proyecto(
     return new_project
 
 
+def generar_tareas_campana(
+    proyecto: dict,
+    tipo: str,
+    numero: int,
+    incluir_sales_pilot: bool = False,
+) -> list[dict]:
+    plantillas = TEMPLATES[tipo]
+
+    if tipo == "campana_normal" and incluir_sales_pilot:
+        plantillas = plantillas + TEMPLATES["sales_pilot"]
+
+    tareas = []
+    for tarea in plantillas:
+        email = proyecto["equipo"].get(tarea["rol"], "")
+        tareas.append(
+            {
+                "nombre": f"{tarea['nombre']} - Campaña {numero}",
+                "asignado_a": email,
+                "estado": "sin_iniciar",
+                "completado": False,
+            }
+        )
+    return tareas
+
+
+def contar_campanas(proyecto: dict, tipo: str) -> int:
+    """Cuenta cuántas campañas de un tipo ya tiene el proyecto."""
+    prefijo = "SP" if tipo == "sales_pilot" else tipo
+    numeros = set()
+    for tarea in proyecto.get("tareas", []):
+        nombre = tarea["nombre"]
+        if "Campaña" in nombre:
+            try:
+                num = int(nombre.split("Campaña ")[-1])
+                if tipo == "evento" and "Propuesta de prospección" in nombre:
+                    numeros.add(num)
+                elif tipo == "campana_normal" and "prospecting canvas" in nombre:
+                    numeros.add(num)
+            except ValueError:
+                pass
+    return len(numeros)
+
+
 # --- Datos de ejemplo ---
 
 PROYECTOS_EJEMPLO = [
@@ -102,48 +179,7 @@ PROYECTOS_EJEMPLO = [
             "automater": "tf@regrow.agency",
             "coo": "fv@regrow.academy",
         },
-        "tareas": [
-            {
-                "nombre": "Onboarding",
-                "estado": "completado",
-                "asignado_a": "clg@regrow.academy",
-                "semana": 1,
-                "fecha_vencimiento": "2026-03-26",
-                "completado": True,
-            },
-            {
-                "nombre": "Propuesta de secuencia de mensajes",
-                "estado": "sin_iniciar",
-                "asignado_a": "dm@regrow.academy",
-                "semana": 4,
-                "fecha_vencimiento": "2026-04-09",
-                "completado": False,
-            },
-            {
-                "nombre": "Prospección de leads",
-                "estado": "sin_iniciar",
-                "asignado_a": "ar@regrow.agency",
-                "semana": 5,
-                "fecha_vencimiento": "2026-04-16",
-                "completado": False,
-            },
-            {
-                "nombre": "Reunión Estrategia Comercial",
-                "estado": "sin_iniciar",
-                "asignado_a": "mb@regrow.agency",
-                "semana": 3,
-                "fecha_vencimiento": "2026-04-02",
-                "completado": False,
-            },
-            {
-                "nombre": "Automatización Conexiones Lemlist",
-                "estado": "sin_iniciar",
-                "asignado_a": "tf@regrow.agency",
-                "semana": 5,
-                "fecha_vencimiento": "2026-04-16",
-                "completado": False,
-            },
-        ],
+        "tareas": [],
         "notas": [],
     },
     {
@@ -166,32 +202,7 @@ PROYECTOS_EJEMPLO = [
             "automater": "tf@regrow.agency",
             "coo": "fv@regrow.academy",
         },
-        "tareas": [
-            {
-                "nombre": "Onboarding",
-                "estado": "completado",
-                "asignado_a": "clg@regrow.academy",
-                "semana": 1,
-                "fecha_vencimiento": "2026-01-26",
-                "completado": True,
-            },
-            {
-                "nombre": "Propuesta de secuencia de mensajes",
-                "estado": "completado",
-                "asignado_a": "dm@regrow.academy",
-                "semana": 4,
-                "fecha_vencimiento": "2026-02-09",
-                "completado": True,
-            },
-            {
-                "nombre": "Prospección de leads",
-                "estado": "completado",
-                "asignado_a": "mg@regrow.agency",
-                "semana": 5,
-                "fecha_vencimiento": "2026-02-16",
-                "completado": True,
-            },
-        ],
+        "tareas": [],
         "notas": [
             {
                 "autor": "clg@regrow.academy",
@@ -236,6 +247,7 @@ filtro_persona = st.sidebar.multiselect(
     default=[],
     placeholder="Todos",
 )
+
 # --- Filtrar proyectos por estado ---
 if filtro_estado == "Todos":
     proyectos_filtrados = proyectos
@@ -283,17 +295,79 @@ else:
 st.subheader(
     f"Tareas - {', '.join(filtro_persona) if filtro_persona else 'Todos'}"
 )
-if filtro_persona:
-    tareas = []
-    for persona in filtro_persona:
-        tareas.extend(buscar_tareas_por_persona(proyectos, persona))
-else:
-    tareas = buscar_tareas_por_persona(proyectos, "Todos")
-
+tareas = buscar_tareas_por_persona(proyectos, filtro_persona if filtro_persona else None)
 if tareas:
     st.dataframe(tareas, use_container_width=True, hide_index=True)
 else:
     st.info("No hay tareas asignadas")
+
+# --- Agregar campaña a un proyecto ---
+st.subheader("Agregar campaña a proyecto")
+
+proyectos_activos = [p for p in proyectos if p["estado"] == "activo"]
+
+if proyectos_activos:
+    nombres_proyectos = [
+        f"{p['empresa']['nombre']} (ID: {p['id']})" for p in proyectos_activos
+    ]
+
+    with st.form("nueva_campana", clear_on_submit=True):
+        proyecto_seleccionado = st.selectbox(
+            "Proyecto",
+            nombres_proyectos,
+        )
+
+        tipo_campana = st.selectbox(
+            "Tipo de campaña",
+            ["Campaña normal", "Evento"],
+        )
+
+        incluir_sp = False
+        if tipo_campana == "Campaña normal":
+            incluir_sp = st.checkbox("Incluir Sales Pilot")
+
+        enviado = st.form_submit_button("Generar tareas")
+
+        if enviado:
+            # Encontrar el proyecto seleccionado
+            idx = nombres_proyectos.index(proyecto_seleccionado)
+            proyecto = proyectos_activos[idx]
+
+            # Determinar tipo para el template
+            tipo = "campana_normal" if tipo_campana == "Campaña normal" else "evento"
+
+            # Calcular número de campaña
+            numero = contar_campanas(proyecto, tipo) + 1
+
+            # Verificar que el equipo esté asignado
+            roles_vacios = [
+                rol for rol, email in proyecto["equipo"].items() if not email
+            ]
+            if roles_vacios:
+                st.error(
+                    f"El proyecto no tiene asignado: {', '.join(roles_vacios)}. "
+                    "Asigná el equipo antes de generar tareas."
+                )
+            else:
+                nuevas_tareas = generar_tareas_campana(
+                    proyecto, tipo, numero, incluir_sp
+                )
+
+                # Encontrar el proyecto en la lista original y agregar tareas
+                for p in proyectos:
+                    if p["id"] == proyecto["id"]:
+                        p["tareas"].extend(nuevas_tareas)
+                        break
+
+                guardar_proyectos(proyectos)
+                st.success(
+                    f"{tipo_campana} {numero} generada para "
+                    f"{proyecto['empresa']['nombre']} "
+                    f"({len(nuevas_tareas)} tareas)"
+                )
+                st.rerun()
+else:
+    st.info("No hay proyectos activos para agregar campañas")
 
 # --- Formulario para crear proyecto ---
 st.subheader("Crear nuevo proyecto")

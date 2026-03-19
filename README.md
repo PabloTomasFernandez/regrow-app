@@ -21,7 +21,7 @@ tareas y estado de cada proyecto desde una interfaz web.
 
 ## Cómo correrlo
 ```bash
-git clone https://github.com/TU-USUARIO/regrow-app.git
+git clone git clone https://github.com/PabloTomasFernandez/regrow-app.git
 cd regrow-app
 uv sync
 uv run streamlit run app.py
