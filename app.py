@@ -230,11 +230,12 @@ for p in proyectos:
         if email:
             todos_los_emails.add(email)
 
-filtro_persona = st.sidebar.selectbox(
-    "Miembro del equipo",
-    ["Todos"] + sorted(todos_los_emails),
+filtro_persona = st.sidebar.multiselect(
+    "Miembros del equipo",
+    sorted(todos_los_emails),
+    default=[],
+    placeholder="Todos",
 )
-
 # --- Filtrar proyectos por estado ---
 if filtro_estado == "Todos":
     proyectos_filtrados = proyectos
@@ -279,8 +280,16 @@ else:
     st.info("No hay proyectos con ese filtro")
 
 # --- Tareas por persona ---
-st.subheader(f"Tareas - {filtro_persona}")
-tareas = buscar_tareas_por_persona(proyectos, filtro_persona)
+st.subheader(
+    f"Tareas - {', '.join(filtro_persona) if filtro_persona else 'Todos'}"
+)
+if filtro_persona:
+    tareas = []
+    for persona in filtro_persona:
+        tareas.extend(buscar_tareas_por_persona(proyectos, persona))
+else:
+    tareas = buscar_tareas_por_persona(proyectos, "Todos")
+
 if tareas:
     st.dataframe(tareas, use_container_width=True, hide_index=True)
 else:
