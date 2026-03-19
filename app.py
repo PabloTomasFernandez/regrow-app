@@ -257,6 +257,14 @@ def activar_proyecto(
         fecha = calcular_fecha_vencimiento(fecha_inicio, tarea["semana"])
         tareas.append(crear_tarea(tarea["nombre"], email, tarea["semana"], fecha))
 
+    # Marcar Onboarding COO con la fecha real
+    for tarea in tareas:
+        if tarea["nombre"] == "Onboarding COO":
+            tarea["fecha_vencimiento"] = fecha_inicio
+            tarea["fecha_realizado"] = fecha_inicio
+            tarea["estado"] = "completado"
+            break
+
     # 2. Tres campañas normales (semanas 3, 7, 11)
     for i, semana_inicio in enumerate(CAMPANAS_INICIALES):
         numero = i + 1
@@ -300,6 +308,38 @@ def activar_proyecto(
 
     proyecto["tareas"].extend(tareas)
     guardar_proyectos(proyectos)
+
+
+def cambiar_estado_tarea(
+    proyectos: list[dict],
+    proyecto_id: int,
+    nombre_tarea: str,
+    nuevo_estado: str,
+    comentario: str = "",
+    autor: str = "",
+    fecha_realizado: str = "",
+) -> bool:
+    for proyecto in proyectos:
+        if proyecto["id"] == proyecto_id:
+            for tarea in proyecto["tareas"]:
+                if tarea["nombre"] == nombre_tarea:
+                    tarea["estado"] = nuevo_estado
+                    if nuevo_estado == "completado":
+                        tarea["fecha_realizado"] = (
+                            fecha_realizado
+                            or datetime.now().strftime("%Y-%m-%d")
+                        )
+                    if comentario:
+                        tarea["comentarios"].append(
+                            {
+                                "autor": autor,
+                                "fecha": datetime.now().strftime("%Y-%m-%d"),
+                                "texto": comentario,
+                            }
+                        )
+                    guardar_proyectos(proyectos)
+                    return True
+    return False
 
 
 # --- Datos de ejemplo ---
@@ -454,9 +494,9 @@ if proyectos_inactivos:
     with st.form("activar_proyecto", clear_on_submit=True):
         proyecto_seleccionado = st.selectbox("Proyecto a activar", nombres_inactivos)
         fecha_inicio_input = st.date_input(
-            "Fecha del Onboarding (referencia para todas las fechas)",
+            "Fecha del Onboarding COO",
             value=proximo_viernes(datetime.now()),
-            help="Fecha del Onboarding Fran. Las fechas de vencimiento se calculan con el viernes de cada semana.",
+            help="Todas las fechas de vencimiento se calculan a partir de esta fecha",
         )
         duracion = st.number_input(
             "Duración del proyecto (semanas)", min_value=4, max_value=52, value=14
@@ -497,9 +537,74 @@ if tareas:
 else:
     st.info("No hay tareas asignadas")
 
-# --- Agregar campaña a un proyecto ---
+# --- Gestión de tareas ---
 proyectos_activos = [p for p in proyectos if p["estado"] == "activo"]
 
+if proyectos_activos:
+    st.subheader("Gestión de tareas")
+
+    nombres_activos_tareas = [
+        f"{p['empresa']['nombre']} (ID: {p['id']})" for p in proyectos_activos
+    ]
+    proyecto_sel = st.selectbox(
+        "Proyecto", nombres_activos_tareas, key="sel_tareas"
+    )
+    idx = nombres_activos_tareas.index(proyecto_sel)
+    proyecto_actual = proyectos_activos[idx]
+
+    tareas_proyecto = proyecto_actual.get("tareas", [])
+    if tareas_proyecto:
+        datos_tareas = []
+        for t in tareas_proyecto:
+            datos_tareas.append(
+                {
+                    "Tarea": t["nombre"],
+                    "Asignado": t["asignado_a"],
+                    "Estado": t["estado"],
+                    "Semana": t.get("semana", ""),
+                    "Vence": t.get("fecha_vencimiento", ""),
+                    "Realizado": t.get("fecha_realizado", ""),
+                }
+            )
+        st.dataframe(datos_tareas, use_container_width=True, hide_index=True)
+
+        with st.form("cambiar_estado", clear_on_submit=True):
+            nombres_tareas = [t["nombre"] for t in tareas_proyecto]
+            tarea_sel = st.selectbox("Tarea", nombres_tareas)
+            nuevo_estado = st.selectbox(
+                "Nuevo estado",
+                ["sin_iniciar", "en_curso", "completado"],
+            )
+            fecha_realizado_input = st.date_input(
+                "Fecha de realización (solo aplica si es completado)",
+                value=datetime.now(),
+            )
+            comentario = st.text_input("Comentario (opcional)")
+
+            cambiar = st.form_submit_button("Actualizar tarea")
+
+            if cambiar:
+                fecha_str = ""
+                if nuevo_estado == "completado":
+                    fecha_str = fecha_realizado_input.strftime("%Y-%m-%d")
+                exito = cambiar_estado_tarea(
+                    proyectos=proyectos,
+                    proyecto_id=proyecto_actual["id"],
+                    nombre_tarea=tarea_sel,
+                    nuevo_estado=nuevo_estado,
+                    comentario=comentario,
+                    autor="admin",
+                    fecha_realizado=fecha_str,
+                )
+                if exito:
+                    st.success(f"Tarea actualizada a: {nuevo_estado}")
+                    st.rerun()
+                else:
+                    st.error("No se encontró la tarea")
+            else:
+                st.info("Este proyecto no tiene tareas")
+
+# --- Agregar campaña a un proyecto ---
 if proyectos_activos:
     st.subheader("Agregar campaña")
 
@@ -508,7 +613,9 @@ if proyectos_activos:
     ]
 
     with st.form("nueva_campana", clear_on_submit=True):
-        proyecto_seleccionado = st.selectbox("Proyecto", nombres_activos)
+        proyecto_seleccionado = st.selectbox(
+            "Proyecto", nombres_activos, key="sel_campana"
+        )
 
         tipo_campana = st.selectbox(
             "Tipo de campaña",
