@@ -176,12 +176,12 @@ def crear_proyecto(
     proyecto_id = max((p["id"] for p in proyectos), default=0) + 1
     new_project = {
         "id": proyecto_id,
-        "empresa": {"nombre": empresa_nombre, "web": empresa_web},
+        "empresa": {"nombre": empresa_nombre.strip(), "web": empresa_web.strip().lower()},
         "contacto": {
-            "nombre": contacto_nombre,
-            "apellido": contacto_apellido,
-            "linkedin_url": linkedin_url,
-            "ghl_url": ghl_url,
+            "nombre": contacto_nombre.strip(),
+            "apellido": contacto_apellido.strip(),
+            "linkedin_url": linkedin_url.strip(),
+            "ghl_url": ghl_url.strip(),
         },
         "estado": "inactivo",
         "started_date": "",
