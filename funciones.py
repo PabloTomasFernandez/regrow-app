@@ -11,7 +11,7 @@ from templates import (
 
 
 def calcular_fecha_vencimiento(fecha_onboarding: str, semana: int) -> str:
-    """Replica la fórmula del Excel: $G$4 + 7*(semana-1) + (5 - WEEKDAY($G$4, 2))"""
+    """Calcula la fecha de vencimiento de una tarea basada en la fecha de onboarding y la semana."""
     inicio = datetime.strptime(fecha_onboarding, "%Y-%m-%d")
     dias_hasta_viernes = (4 - inicio.weekday()) % 7
     fecha = inicio + timedelta(days=7 * (semana - 1) + dias_hasta_viernes)
@@ -20,8 +20,6 @@ def calcular_fecha_vencimiento(fecha_onboarding: str, semana: int) -> str:
 
 def proximo_viernes(fecha: datetime) -> datetime:
     dias_hasta_viernes = (4 - fecha.weekday()) % 7
-    if dias_hasta_viernes == 0 and fecha.weekday() != 4:
-        dias_hasta_viernes = 7
     return fecha + timedelta(days=dias_hasta_viernes)
 
 
