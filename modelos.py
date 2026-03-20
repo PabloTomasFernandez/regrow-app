@@ -21,6 +21,7 @@ class Equipo(BaseModel):
     automater: str = ""
     coo: str = ""
 
+
 class Proyecto(BaseModel):
     id: int
     empresa: Empresa
@@ -32,11 +33,12 @@ class Proyecto(BaseModel):
     tareas: list = []
     notas: list = []
 
+
 class ProyectoCrear(BaseModel):
     empresa: Empresa
     contacto: Contacto
 
+
 class ProyectoActivar(BaseModel):
     fecha_inicio: str
     duracion_semanas: int = 14
-

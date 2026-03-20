@@ -1,6 +1,10 @@
 from fastapi import FastAPI, HTTPException
 
-from funciones import cargar_proyectos, crear_proyecto, activar_proyecto, guardar_proyectos
+from funciones import (
+    activar_proyecto,
+    cargar_proyectos,
+    crear_proyecto,
+)
 from modelos import Proyecto, ProyectoActivar, ProyectoCrear
 
 app = FastAPI(title="Regrow API")
@@ -10,9 +14,11 @@ app = FastAPI(title="Regrow API")
 def inicio():
     return {"mensaje": "Regrow API funcionando"}
 
+
 @app.get("/proyectos", response_model=list[Proyecto])
 def listar_proyectos():
     return cargar_proyectos()
+
 
 @app.post("/proyectos/{proyecto_id }", response_model=Proyecto)
 def obtener_proyecto(proyecto_id: int):
@@ -21,6 +27,7 @@ def obtener_proyecto(proyecto_id: int):
         if proyecto["id"] == proyecto_id:
             return proyecto
     raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+
 
 @app.post("/proyectos", response_model=Proyecto)
 def nuevo_proyecto(datos: ProyectoCrear):
@@ -36,17 +43,22 @@ def nuevo_proyecto(datos: ProyectoCrear):
     )
     return proyecto
 
+
 @app.post("/proyectos/{proyecto_id}/activar")
 def activar(proyecto_id: int, datos: ProyectoActivar):
     proyectos = cargar_proyectos()
     for proyecto in proyectos:
         if proyecto["id"] == proyecto_id:
-            roles_vacios = [rol for rol, email in proyecto["equipo"].items() if not email]
+            roles_vacios = [
+                rol for rol, email in proyecto["equipo"].items() if not email
+            ]
             if roles_vacios:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Faltan roles: {', '.join(roles_vacios)}",
                 )
-            activar_proyecto(proyecto, proyectos, datos.fecha_inicio, datos.duracion_semanas)
+            activar_proyecto(
+                proyecto, proyectos, datos.fecha_inicio, datos.duracion_semanas
+            )
             return proyecto
     raise HTTPException(status_code=404, detail="Proyecto no encontrado")
