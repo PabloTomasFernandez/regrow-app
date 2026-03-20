@@ -5,7 +5,9 @@ description = "Entorno profesional de desarrollo Python con Ruff, uv y pre-commi
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.135.1",
     "streamlit>=1.55.0",
+    "uvicorn>=0.42.0",
 ]
 
 [dependency-groups]
