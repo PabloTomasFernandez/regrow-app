@@ -20,7 +20,7 @@ def listar_proyectos():
     return cargar_proyectos()
 
 
-@app.post("/proyectos/{proyecto_id }", response_model=Proyecto)
+@app.get("/proyectos/{proyecto_id}", response_model=Proyecto)
 def obtener_proyecto(proyecto_id: int):
     proyectos = cargar_proyectos()
     for proyecto in proyectos:
