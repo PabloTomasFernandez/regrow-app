@@ -77,3 +77,28 @@ TEMPLATES_CAMPANA = {
 }
 
 CAMPANAS_INICIALES = [3, 7, 11]
+
+EQUIPO_REGROW = {
+    "pusher_coach": [
+        "clg@regrow.academy",
+    ],
+    "account_manager": [
+        "mb@regrow.agency",
+        "rg@regrow.agency",
+        "mgr@regrow.academy",
+    ],
+    "copy": [
+        "dm@regrow.academy",
+    ],
+    "sdr": [
+        "ar@regrow.agency",
+        "mg@regrow.agency",
+        "ml@regrow.agency",
+    ],
+    "automater": [
+        "tf@regrow.agency",
+    ],
+    "coo": [
+        "fv@regrow.academy",
+    ],
+}

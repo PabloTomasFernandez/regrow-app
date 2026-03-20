@@ -1,4 +1,5 @@
 import streamlit as st
+from templates import EQUIPO_REGROW
 
 from funciones import (
     asignar_equipo,
@@ -13,7 +14,8 @@ proyectos = cargar_proyectos()
 
 # --- Asignar equipo ---
 proyectos_sin_equipo = [
-    p for p in proyectos
+    p
+    for p in proyectos
     if p["estado"] in ("inactivo", "activo")
     and any(not email for email in p["equipo"].values())
 ]
@@ -25,9 +27,7 @@ if proyectos_sin_equipo:
         f"{p['empresa']['nombre']} (ID: {p['id']})" for p in proyectos_sin_equipo
     ]
 
-    proyecto_equipo_sel = st.selectbox(
-        "Proyecto", nombres_sin_equipo, key="sel_equipo"
-    )
+    proyecto_equipo_sel = st.selectbox("Proyecto", nombres_sin_equipo, key="sel_equipo")
     idx = nombres_sin_equipo.index(proyecto_equipo_sel)
     proyecto_equipo = proyectos_sin_equipo[idx]
 
@@ -36,26 +36,54 @@ if proyectos_sin_equipo:
         col_izq, col_der = st.columns(2)
 
         with col_izq:
-            pusher_coach = st.text_input(
-                "Pusher Coach", value=equipo_actual.get("pusher_coach", "")
+            opciones_pc = [""] + EQUIPO_REGROW["pusher_coach"]
+            idx_pc = (
+                opciones_pc.index(equipo_actual.get("pusher_coach", ""))
+                if equipo_actual.get("pusher_coach", "") in opciones_pc
+                else 0
             )
-            account_manager = st.text_input(
-                "Account Manager", value=equipo_actual.get("account_manager", "")
+            pusher_coach = st.selectbox("Pusher Coach", opciones_pc, index=idx_pc)
+
+            opciones_am = [""] + EQUIPO_REGROW["account_manager"]
+            idx_am = (
+                opciones_am.index(equipo_actual.get("account_manager", ""))
+                if equipo_actual.get("account_manager", "") in opciones_am
+                else 0
             )
-            copy = st.text_input(
-                "Copy", value=equipo_actual.get("copy", "")
+            account_manager = st.selectbox("Account Manager", opciones_am, index=idx_am)
+
+            opciones_copy = [""] + EQUIPO_REGROW["copy"]
+            idx_copy = (
+                opciones_copy.index(equipo_actual.get("copy", ""))
+                if equipo_actual.get("copy", "") in opciones_copy
+                else 0
             )
+            copy = st.selectbox("Copy", opciones_copy, index=idx_copy)
 
         with col_der:
-            sdr = st.text_input(
-                "SDR", value=equipo_actual.get("sdr", "")
+            opciones_pc = [""] + EQUIPO_REGROW["sdr"]
+            idx_pc = (
+                opciones_pc.index(equipo_actual.get("sdr", ""))
+                if equipo_actual.get("sdr", "") in opciones_pc
+                else 0
             )
-            automater = st.text_input(
-                "Automater", value=equipo_actual.get("automater", "")
+            sdr = st.selectbox("SDR", opciones_pc, index=idx_pc)
+
+            opciones_pc = [""] + EQUIPO_REGROW["automater"]
+            idx_pc = (
+                opciones_pc.index(equipo_actual.get("automater", ""))
+                if equipo_actual.get("automater", "") in opciones_pc
+                else 0
             )
-            coo = st.text_input(
-                "COO", value=equipo_actual.get("coo", "")
+            automater = st.selectbox("Automater", opciones_pc, index=idx_pc)
+
+            opciones_coo = [""] + EQUIPO_REGROW["coo"]
+            idx_coo = (
+                opciones_coo.index(equipo_actual.get("coo", ""))
+                if equipo_actual.get("coo", "") in opciones_coo
+                else 0
             )
+            coo = st.selectbox("COO", opciones_coo, index=idx_coo)
 
         guardar_equipo = st.form_submit_button("Guardar equipo")
 

@@ -1,7 +1,11 @@
 import json
 from datetime import datetime, timedelta
 
-from templates import CAMPANAS_INICIALES, TEMPLATE_BASE, TEMPLATES_CAMPANA
+from templates import (
+    CAMPANAS_INICIALES,
+    TEMPLATE_BASE,
+    TEMPLATES_CAMPANA,
+)
 
 
 # --- Funciones de fechas ---
@@ -92,8 +96,7 @@ def cambiar_estado_tarea(
                     tarea["estado"] = nuevo_estado
                     if nuevo_estado == "completado":
                         tarea["fecha_realizado"] = (
-                            fecha_realizado
-                            or datetime.now().strftime("%Y-%m-%d")
+                            fecha_realizado or datetime.now().strftime("%Y-%m-%d")
                         )
                     if comentario:
                         tarea["comentarios"].append(
@@ -249,7 +252,10 @@ def activar_proyecto(
 
     # 4. Tareas de cierre
     tareas_cierre = [
-        {"nombre": "Aviso 1 mes para que finalice el proyecto", "semana": duracion_semanas - 5},
+        {
+            "nombre": "Aviso 1 mes para que finalice el proyecto",
+            "semana": duracion_semanas - 5,
+        },
         {"nombre": "Informe cierre interno", "semana": duracion_semanas},
         {"nombre": "Informe cierre cliente", "semana": duracion_semanas},
     ]
@@ -280,6 +286,7 @@ def asignar_equipo(
             return True
     return False
 
+
 def agregar_sales_pilot(
     proyecto: dict,
     numero_campana: int,
@@ -305,4 +312,3 @@ def agregar_sales_pilot(
     return tareas
     # 2. Generar las tareas con "- Campaña {numero_campana}" en el nombre
     # 3. Devolver la lista
-    
