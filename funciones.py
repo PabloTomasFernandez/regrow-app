@@ -11,7 +11,7 @@ from templates import (
 
 
 def calcular_fecha_vencimiento(fecha_onboarding: str, semana: int) -> str:
-    """Calcula la fecha de vencimiento de una tarea basada en la fecha de onboarding y la semana."""
+    """Calcula la fecha de vencimiento según onboarding y semana."""
     inicio = datetime.strptime(fecha_onboarding, "%Y-%m-%d")
     dias_hasta_viernes = (4 - inicio.weekday()) % 7
     fecha = inicio + timedelta(days=7 * (semana - 1) + dias_hasta_viernes)
