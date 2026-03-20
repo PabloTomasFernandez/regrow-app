@@ -1,7 +1,7 @@
 [project]
 name = "regrow-app"
 version = "0.1.0"
-description = "Add your description here"
+description = "Entorno profesional de desarrollo Python con Ruff, uv y pre-commit hooks"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -14,7 +14,21 @@ dev = [
 ]
 
 [tool.ruff]
+target-version = "py312"
 line-length = 88
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = [
+    "E",    # errores de estilo
+    "W",    # warnings
+    "F",    # pyflakes (errores lógicos)
+    "I",    # isort (orden de imports)
+    "N",    # naming conventions
+    "UP",   # pyupgrade (modernizar sintaxis)
+    "B",    # bugbear (errores comunes)
+    "SIM",  # simplificar código
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
