@@ -90,7 +90,9 @@ st.subheader("Resumen de proyectos")
 datos_tabla = []
 for p in proyectos:
     num_tareas = len(p.get("tareas", []))
-    tareas_completadas = sum(1 for t in p.get("tareas", []) if t["estado"] == "completado")
+    tareas_completadas = sum(
+        1 for t in p.get("tareas", []) if t["estado"] == "completado"
+    )
     datos_tabla.append(
         {
             "Empresa": p["empresa"]["nombre"],

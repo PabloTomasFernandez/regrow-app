@@ -5,7 +5,6 @@ import streamlit as st
 from funciones import (
     activar_proyecto,
     cargar_proyectos,
-    guardar_proyectos,
     proximo_viernes,
 )
 
@@ -23,9 +22,7 @@ filtro_estado = st.selectbox(
 if filtro_estado == "Todos":
     proyectos_filtrados = proyectos
 else:
-    proyectos_filtrados = [
-        p for p in proyectos if p["estado"] == filtro_estado.lower()
-    ]
+    proyectos_filtrados = [p for p in proyectos if p["estado"] == filtro_estado.lower()]
 
 # --- Tabla de proyectos ---
 datos_tabla = []
@@ -87,7 +84,6 @@ if proyectos_inactivos:
                 activar_proyecto(proyecto, proyectos, fecha_str, duracion)
                 num_tareas = len(proyecto["tareas"])
                 st.success(
-                    f"{proyecto['empresa']['nombre']} activado con {num_tareas} tareas. "
-                    f"Inicio: {fecha_str}"
+                    f"{proyecto['empresa']['nombre']} activado "
+                    f"con {num_tareas} tareas. Inicio: {fecha_str}"
                 )
-                st.rerun()

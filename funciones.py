@@ -7,7 +7,6 @@ from templates import (
     TEMPLATES_CAMPANA,
 )
 
-
 # --- Funciones de fechas ---
 
 
@@ -39,7 +38,7 @@ def guardar_proyectos(proyectos: list[dict], ruta: str = "proyectos.json") -> bo
 
 def cargar_proyectos(ruta: str = "proyectos.json") -> list[dict]:
     try:
-        with open(ruta, "r") as archivo:
+        with open(ruta) as archivo:
             return json.load(archivo)
     except FileNotFoundError:
         return []
@@ -176,7 +175,10 @@ def crear_proyecto(
     proyecto_id = max((p["id"] for p in proyectos), default=0) + 1
     new_project = {
         "id": proyecto_id,
-        "empresa": {"nombre": empresa_nombre.strip(), "web": empresa_web.strip().lower()},
+        "empresa": {
+            "nombre": empresa_nombre.strip(),
+            "web": empresa_web.strip().lower(),
+        },
         "contacto": {
             "nombre": contacto_nombre.strip(),
             "apellido": contacto_apellido.strip(),

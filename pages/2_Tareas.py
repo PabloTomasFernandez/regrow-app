@@ -27,9 +27,7 @@ filtro_persona = st.multiselect(
     placeholder="Todos",
 )
 
-st.subheader(
-    f"Tareas - {', '.join(filtro_persona) if filtro_persona else 'Todos'}"
-)
+st.subheader(f"Tareas - {', '.join(filtro_persona) if filtro_persona else 'Todos'}")
 tareas = buscar_tareas_por_persona(
     proyectos, filtro_persona if filtro_persona else None
 )
@@ -47,9 +45,7 @@ if proyectos_activos:
     nombres_activos_tareas = [
         f"{p['empresa']['nombre']} (ID: {p['id']})" for p in proyectos_activos
     ]
-    proyecto_sel = st.selectbox(
-        "Proyecto", nombres_activos_tareas, key="sel_tareas"
-    )
+    proyecto_sel = st.selectbox("Proyecto", nombres_activos_tareas, key="sel_tareas")
     idx = nombres_activos_tareas.index(proyecto_sel)
     proyecto_actual = proyectos_activos[idx]
 

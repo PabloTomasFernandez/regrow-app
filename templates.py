@@ -1,7 +1,11 @@
 TEMPLATE_BASE = [
     # Semana 1 - Onboarding
     {"nombre": "Onboarding Pusher Coach", "rol": "pusher_coach", "semana": 1},
-    {"nombre": "Envío de mensaje post onboarding (Pusher Coach)", "rol": "pusher_coach", "semana": 1},
+    {
+        "nombre": "Envío de mensaje post onboarding (Pusher Coach)",
+        "rol": "pusher_coach",
+        "semana": 1,
+    },
     {"nombre": "Onboarding COO", "rol": "coo", "semana": 1},
     {"nombre": "Envío de mensaje post onboarding (COO)", "rol": "coo", "semana": 1},
     {"nombre": "Creación grupo Whatsapp/Slack", "rol": "account_manager", "semana": 1},
@@ -18,7 +22,11 @@ TEMPLATE_BASE = [
     {"nombre": "Propuesta de mejora de perfil", "rol": "copy", "semana": 3},
     {"nombre": "Propuesta de ideas para posteos", "rol": "copy", "semana": 3},
     {"nombre": "Reunión estrategia comercial", "rol": "account_manager", "semana": 3},
-    {"nombre": "Envío informe matriz de prospección", "rol": "account_manager", "semana": 3},
+    {
+        "nombre": "Envío informe matriz de prospección",
+        "rol": "account_manager",
+        "semana": 3,
+    },
     {"nombre": "Reunión de automatizaciones", "rol": "automater", "semana": 3},
     {"nombre": "Lemlist pago", "rol": "automater", "semana": 3},
     {"nombre": "Conexión email a Lemlist", "rol": "automater", "semana": 3},
@@ -47,14 +55,30 @@ TEMPLATE_BASE = [
 
 TEMPLATES_CAMPANA = {
     "campana_normal": [
-        {"nombre": "Propuesta de prospecting canvas", "rol": "account_manager", "offset": 0},
-        {"nombre": "Validación de prospecting canvas", "rol": "account_manager", "offset": 1},
+        {
+            "nombre": "Propuesta de prospecting canvas",
+            "rol": "account_manager",
+            "offset": 0,
+        },
+        {
+            "nombre": "Validación de prospecting canvas",
+            "rol": "account_manager",
+            "offset": 1,
+        },
         {"nombre": "Propuesta de prospección de cuentas", "rol": "sdr", "offset": 1},
-        {"nombre": "Validación de prospección de cuentas", "rol": "account_manager", "offset": 1},
+        {
+            "nombre": "Validación de prospección de cuentas",
+            "rol": "account_manager",
+            "offset": 1,
+        },
         {"nombre": "Propuesta de secuencia de mensajes", "rol": "copy", "offset": 1},
         {"nombre": "Prospección de leads", "rol": "sdr", "offset": 2},
         {"nombre": "Validación de secuencia de mensajes", "rol": "copy", "offset": 2},
-        {"nombre": "Automatización conexiones Lemlist", "rol": "automater", "offset": 2},
+        {
+            "nombre": "Automatización conexiones Lemlist",
+            "rol": "automater",
+            "offset": 2,
+        },
         {"nombre": "Automatización mensajes Lemlist", "rol": "automater", "offset": 3},
         {"nombre": "Informe de resultados", "rol": "account_manager", "offset": 4},
     ],
@@ -66,11 +90,19 @@ TEMPLATES_CAMPANA = {
     ],
     "evento": [
         {"nombre": "Propuesta de prospección de cuentas", "rol": "sdr", "offset": 0},
-        {"nombre": "Validación de prospección de cuentas", "rol": "account_manager", "offset": 1},
+        {
+            "nombre": "Validación de prospección de cuentas",
+            "rol": "account_manager",
+            "offset": 1,
+        },
         {"nombre": "Prospección de leads", "rol": "sdr", "offset": 1},
         {"nombre": "Propuesta de secuencia de mensajes", "rol": "copy", "offset": 1},
         {"nombre": "Validación de secuencia de mensajes", "rol": "copy", "offset": 2},
-        {"nombre": "Automatización conexiones Lemlist", "rol": "automater", "offset": 2},
+        {
+            "nombre": "Automatización conexiones Lemlist",
+            "rol": "automater",
+            "offset": 2,
+        },
         {"nombre": "Automatización mensajes Lemlist", "rol": "automater", "offset": 3},
         {"nombre": "Informe de resultados", "rol": "account_manager", "offset": 4},
     ],

@@ -26,9 +26,7 @@ nombres_activos = [
 ]
 
 with st.form("nueva_campana", clear_on_submit=True):
-    proyecto_seleccionado = st.selectbox(
-        "Proyecto", nombres_activos, key="sel_campana"
-    )
+    proyecto_seleccionado = st.selectbox("Proyecto", nombres_activos, key="sel_campana")
 
     tipo_campana = st.selectbox(
         "Tipo de campaña",
@@ -78,9 +76,7 @@ with st.form("nueva_campana", clear_on_submit=True):
 # --- Agregar Sales Pilot ---
 st.subheader("Agregar Sales Pilot a campaña existente")
 
-proyecto_sp_sel = st.selectbox(
-    "Proyecto", nombres_activos, key="sel_sp_proyecto"
-)
+proyecto_sp_sel = st.selectbox("Proyecto", nombres_activos, key="sel_sp_proyecto")
 idx = nombres_activos.index(proyecto_sp_sel)
 proyecto_sp = proyectos_activos[idx]
 

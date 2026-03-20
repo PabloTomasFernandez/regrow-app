@@ -1,11 +1,11 @@
 import streamlit as st
-from templates import EQUIPO_REGROW
 
 from funciones import (
     asignar_equipo,
     cargar_proyectos,
     crear_proyecto,
 )
+from templates import EQUIPO_REGROW
 
 st.set_page_config(page_title="Configuración - Regrow", layout="wide")
 st.title("Configuración")

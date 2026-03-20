@@ -1,4 +1,9 @@
-from funciones import crear_tarea, calcular_fecha_vencimiento, crear_proyecto, contar_campanas
+from funciones import (
+    calcular_fecha_vencimiento,
+    contar_campanas,
+    crear_proyecto,
+    crear_tarea,
+)
 
 
 def test_crear_tarea():
@@ -9,9 +14,11 @@ def test_crear_tarea():
     assert tarea["semana"] == 1
     assert tarea["comentarios"] == []
 
+
 def test_calcular_fecha_vencimiento():
     fecha = calcular_fecha_vencimiento("2025-11-14", 2)
     assert fecha == "2025-11-21"
+
 
 def test_crear_proyecto():
     proyectos = []
@@ -20,6 +27,7 @@ def test_crear_proyecto():
     assert proyecto["estado"] == "inactivo"
     assert proyecto["equipo"]["account_manager"] == ""
     assert len(proyectos) == 1
+
 
 def test_contar_campanas():
     proyecto = {
