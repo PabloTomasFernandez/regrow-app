@@ -1,4 +1,5 @@
 # Regrow App
+![CI](https://github.com/PabloTomasFernandez/regrow-app/actions/workflows/ci.yml/badge.svg)
 
 Gestor interno de proyectos para Regrow. Controla clientes, equipos,
 tareas y estado de cada proyecto desde una interfaz web.
