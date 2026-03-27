@@ -1,11 +1,11 @@
 from fastapi import FastAPI, HTTPException
 
-from funciones import (
-    activar_proyecto,
-    cargar_proyectos,
-    crear_proyecto,
+from db_funciones import (
+    crear_proyecto_db,
+    listar_proyectos,
+    obtener_proyecto_completo,
 )
-from modelos import Proyecto, ProyectoActivar, ProyectoCrear
+from modelos import ProyectoCrear
 
 app = FastAPI(title="Regrow API")
 
@@ -15,25 +15,24 @@ def inicio():
     return {"mensaje": "Regrow API funcionando"}
 
 
-@app.get("/proyectos", response_model=list[Proyecto])
-def listar_proyectos():
-    return cargar_proyectos()
+@app.get("/proyectos")
+def get_proyectos():
+    return listar_proyectos()
 
 
-@app.get("/proyectos/{proyecto_id}", response_model=Proyecto)
-def obtener_proyecto(proyecto_id: int):
-    proyectos = cargar_proyectos()
-    for proyecto in proyectos:
-        if proyecto["id"] == proyecto_id:
-            return proyecto
-    raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+@app.get("/proyectos/{proyecto_id}")
+def get_proyecto(proyecto_id: int):
+    proyecto = obtener_proyecto_completo(proyecto_id)
+    if not proyecto:
+        raise HTTPException(
+            status_code=404, detail="Proyecto no encontrado"
+        )
+    return proyecto
 
 
-@app.post("/proyectos", response_model=Proyecto)
+@app.post("/proyectos")
 def nuevo_proyecto(datos: ProyectoCrear):
-    proyectos = cargar_proyectos()
-    proyecto = crear_proyecto(
-        proyectos=proyectos,
+    proyecto = crear_proyecto_db(
         empresa_nombre=datos.empresa.nombre,
         empresa_web=datos.empresa.web,
         contacto_nombre=datos.contacto.nombre,
@@ -41,24 +40,24 @@ def nuevo_proyecto(datos: ProyectoCrear):
         linkedin_url=datos.contacto.linkedin_url,
         ghl_url=datos.contacto.ghl_url,
     )
-    return proyecto
+    return obtener_proyecto_completo(proyecto.id)
 
 
-@app.post("/proyectos/{proyecto_id}/activar")
-def activar(proyecto_id: int, datos: ProyectoActivar):
-    proyectos = cargar_proyectos()
-    for proyecto in proyectos:
-        if proyecto["id"] == proyecto_id:
-            roles_vacios = [
-                rol for rol, email in proyecto["equipo"].items() if not email
-            ]
-            if roles_vacios:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Faltan roles: {', '.join(roles_vacios)}",
-                )
-            activar_proyecto(
-                proyecto, proyectos, datos.fecha_inicio, datos.duracion_semanas
-            )
-            return proyecto
-    raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+# @app.post("/proyectos/{proyecto_id}/activar")
+# def activar(proyecto_id: int, datos: ProyectoActivar):
+#     proyectos = cargar_proyectos()
+#     for proyecto in proyectos:
+#         if proyecto["id"] == proyecto_id:
+#             roles_vacios = [
+#                 rol for rol, email in proyecto["equipo"].items() if not email
+#             ]
+#             if roles_vacios:
+#                 raise HTTPException(
+#                     status_code=400,
+#                     detail=f"Faltan roles: {', '.join(roles_vacios)}",
+#                 )
+#             activar_proyecto(
+#                 proyecto, proyectos, datos.fecha_inicio, datos.duracion_semanas
+#             )
+#             return proyecto
+#     raise HTTPException(status_code=404, detail="Proyecto no encontrado")
