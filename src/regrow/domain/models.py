@@ -36,6 +36,7 @@ class Company(BaseModel):
     website: str | None = None
 
 
+
 class Client(BaseModel):
     id: int | None = None
     name: str
