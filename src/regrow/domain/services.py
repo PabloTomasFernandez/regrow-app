@@ -80,7 +80,7 @@ def generate_checkups(
     duration_weeks: int,
 ) -> list[Task]:
     """Genera los chequeos periódicos según la duración del proyecto."""
-    num_checkups = (duration_weeks - 3) // 2 + 1
+    num_checkups = (duration_weeks - 3) // 2
     tasks: list[Task] = []
 
     for n in range(1, num_checkups + 1):
