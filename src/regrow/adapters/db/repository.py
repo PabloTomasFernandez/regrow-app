@@ -44,6 +44,9 @@ class Repository:
     def list_clients_by_company(self, company_id: int) -> list[ClientDB]:
         statement = select(ClientDB).where(ClientDB.company_id == company_id)
         return list(self.session.exec(statement).all())
+    
+    def list_clients(self) -> list[ClientDB]:
+        return list(self.session.exec(select(ClientDB)).all())
 
     # --- Team Members ---
 
