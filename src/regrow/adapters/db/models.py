@@ -64,3 +64,64 @@ class TaskDB(SQLModel, table=True):
     due_date: date | None = None
     is_auto_generated: bool = False
     created_at: datetime | None = Field(default_factory=datetime.now)
+
+
+class CampaignDetailDB(SQLModel, table=True):
+    __tablename__ = "campaign_details"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="projects.id")
+    number: int
+    campaign_type: str = "normal"
+    industry: str
+    country: str
+    company_size: str = ""
+    event_name: str | None = None
+    copy_status: str = "draft"
+    created_at: datetime | None = Field(default_factory=datetime.now)
+
+
+class BuyerPersonaDB(SQLModel, table=True):
+    __tablename__ = "buyer_personas"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    campaign_detail_id: int = Field(foreign_key="campaign_details.id")
+    position: str
+    trigger: str | None = None
+    attendee_type: str | None = None
+    lemlist_campaign_id: str | None = None
+    status: str = "draft"
+    created_at: datetime | None = Field(default_factory=datetime.now)
+
+
+class SequenceDB(SQLModel, table=True):
+    __tablename__ = "sequences"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    buyer_persona_id: int = Field(foreign_key="buyer_personas.id")
+    sequence_type: str
+    created_at: datetime | None = Field(default_factory=datetime.now)
+
+
+class MessageDB(SQLModel, table=True):
+    __tablename__ = "messages"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    sequence_id: int = Field(foreign_key="sequences.id")
+    order: int
+    subject: str | None = None
+    body: str
+    delay_days: int = 0
+    approved: bool = False
+    created_at: datetime | None = Field(default_factory=datetime.now)
+
+
+class ValidationDB(SQLModel, table=True):
+    __tablename__ = "validations"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    message_id: int = Field(foreign_key="messages.id")
+    author_id: int = Field(foreign_key="team_members.id")
+    text: str
+    approved: bool = False
+    created_at: datetime | None = Field(default_factory=datetime.now)
