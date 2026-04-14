@@ -27,3 +27,48 @@ class ProjectCreate(BaseModel):
 
 class ActivateProject(BaseModel):
     onboarding_date: date | None = None
+
+
+class CampaignCreate(BaseModel):
+    project_id: int
+    number: int
+    campaign_type: str = "normal"
+    industry: str
+    country: str
+    company_size: str = ""
+    event_name: str | None = None
+
+
+class CopyStatusUpdate(BaseModel):
+    copy_status: str
+
+
+class BuyerPersonaCreate(BaseModel):
+    position: str
+    trigger: str | None = None
+    attendee_type: str | None = None
+
+
+class BuyerPersonaStatusUpdate(BaseModel):
+    status: str
+
+
+class LemlistIdUpdate(BaseModel):
+    lemlist_campaign_id: str
+
+
+class SequenceCreate(BaseModel):
+    sequence_type: str
+
+
+class MessageCreate(BaseModel):
+    order: int
+    subject: str | None = None
+    body: str
+    delay_days: int = 0
+
+
+class ValidationCreate(BaseModel):
+    author_id: int
+    text: str
+    approved: bool = False

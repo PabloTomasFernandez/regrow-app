@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from .adapters.api.campaigns import router as campaigns_router
 from .adapters.api.clients import router as clients_router
 from .adapters.api.companies import router as companies_router
 from .adapters.api.projects import router as projects_router
@@ -21,6 +22,7 @@ app = FastAPI(
 app.include_router(companies_router)
 app.include_router(clients_router)
 app.include_router(projects_router)
+app.include_router(campaigns_router)
 
 
 @app.get("/")
