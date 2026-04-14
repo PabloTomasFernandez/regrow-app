@@ -41,6 +41,7 @@ class TestTaskDateForWeek:
         # Semana 4 = tres semanas después del viernes de semana 1
         assert task_date_for_week(date(2026, 4, 6), 4) == date(2026, 5, 1)
 
+
 class TestGenerateBaseTasks:
     def test_count(self) -> None:
         tasks = generate_base_tasks(project_id=1, onboarding_date=date(2026, 4, 6))

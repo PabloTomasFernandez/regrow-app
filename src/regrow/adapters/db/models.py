@@ -6,7 +6,7 @@ from regrow.domain.models import ProjectStatus, TaskStatus, TeamRole
 
 
 class CompanyDB(SQLModel, table=True):
-    __tablename__ = "companies"   # type: ignore[assignment]
+    __tablename__ = "companies"  # type: ignore[assignment]
 
     id: int | None = Field(default=None, primary_key=True)
     name: str
@@ -17,7 +17,7 @@ class CompanyDB(SQLModel, table=True):
 
 
 class ClientDB(SQLModel, table=True):
-    __tablename__ = "clients"   # type: ignore[assignment]
+    __tablename__ = "clients"  # type: ignore[assignment]
 
     id: int | None = Field(default=None, primary_key=True)
     name: str
@@ -30,7 +30,7 @@ class ClientDB(SQLModel, table=True):
 
 
 class TeamMemberDB(SQLModel, table=True):
-    __tablename__ = "team_members"   # type: ignore[assignment]
+    __tablename__ = "team_members"  # type: ignore[assignment]
 
     id: int | None = Field(default=None, primary_key=True)
     name: str
@@ -40,7 +40,7 @@ class TeamMemberDB(SQLModel, table=True):
 
 
 class ProjectDB(SQLModel, table=True):
-    __tablename__ = "projects"   # type: ignore[assignment]
+    __tablename__ = "projects"  # type: ignore[assignment]
 
     id: int | None = Field(default=None, primary_key=True)
     name: str
@@ -52,8 +52,8 @@ class ProjectDB(SQLModel, table=True):
 
 
 class TaskDB(SQLModel, table=True):
-    __tablename__ = "tasks"   # type: ignore[assignment]
- 
+    __tablename__ = "tasks"  # type: ignore[assignment]
+
     id: int | None = Field(default=None, primary_key=True)
     project_id: int = Field(foreign_key="projects.id")
     title: str
