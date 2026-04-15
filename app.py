@@ -14,7 +14,7 @@ from regrow.adapters.db.models import (
     ProjectDB,
     TaskDB,
 )
-from regrow.domain.models import ProjectStatus, TaskStatus
+from regrow.domain.models import TaskStatus
 
 
 def current_week(activated_at: date | None, today: date) -> int:
@@ -26,11 +26,7 @@ def current_week(activated_at: date | None, today: date) -> int:
 def load_data() -> dict[str, object]:
     today = date.today()
     with Session(engine) as session:
-        projects = list(
-            session.exec(
-                select(ProjectDB).where(ProjectDB.status == ProjectStatus.active)
-            ).all()
-        )
+        projects = list(session.exec(select(ProjectDB)).all())
         clients = {c.id: c for c in session.exec(select(ClientDB)).all()}
         companies = {c.id: c for c in session.exec(select(CompanyDB)).all()}
         campaigns = list(session.exec(select(CampaignDetailDB)).all())
@@ -95,15 +91,22 @@ def project_metrics(
 
 
 def main() -> None:
-    st.set_page_config(page_title="Regrow Dashboard", layout="wide")
-    st.title("Regrow — Project Overview")
+    st.set_page_config(page_title="Regrow", layout="wide")
+    st.title("Regrow — Panel de control")
 
     data = load_data()
     today: date = data["today"]  # type: ignore[assignment]
-    projects: list[ProjectDB] = data["projects"]  # type: ignore[assignment]
+    all_projects: list[ProjectDB] = data["projects"]  # type: ignore[assignment]
     clients: dict[int, ClientDB] = data["clients"]  # type: ignore[assignment]
     companies: dict[int, CompanyDB] = data["companies"]  # type: ignore[assignment]
     bps_by_campaign: dict[int, list[BuyerPersonaDB]] = data["bps_by_campaign"]  # type: ignore[assignment]
+
+    status_options = ["all", "active", "completed", "paused"]
+    selected_status = st.selectbox("Filtrar por estado", status_options, index=0)
+    if selected_status == "all":
+        projects = all_projects
+    else:
+        projects = [p for p in all_projects if str(p.status) == selected_status]
 
     total_projects = len(projects)
     total_campaigns = 0
@@ -147,12 +150,13 @@ def main() -> None:
         }
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Proyectos activos", total_projects)
-    c2.metric("Campañas", total_campaigns)
-    c3.metric("BPs pendientes", total_pending_bps)
-    c4.metric("Tareas vencidas", total_overdue)
+    c1.metric(label="Proyectos activos", value=total_projects)
+    c2.metric(label="Campañas", value=total_campaigns)
+    c3.metric(label="BPs pendientes", value=total_pending_bps)
+    c4.metric(label="Tareas vencidas", value=total_overdue)
 
     st.subheader("Proyectos")
+    rows.sort(key=lambda r: r["Tareas vencidas"], reverse=True)  # type: ignore[arg-type,return-value]
     df = pd.DataFrame(rows)
 
     def highlight_overdue(row: Any) -> list[str]:
@@ -178,6 +182,8 @@ def main() -> None:
             f" (semana {week}/{project.duration_weeks})"
         )
         with st.expander(label):
+            if week > project.duration_weeks:
+                st.warning("⚠️ Proyecto pasado de fecha")
             st.markdown(
                 f"**Cliente:** {company_name}  \n"
                 f"**Proyecto:** {project.name}  \n"
