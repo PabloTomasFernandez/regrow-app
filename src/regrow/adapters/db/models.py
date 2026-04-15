@@ -64,6 +64,7 @@ class TaskDB(SQLModel, table=True):
     due_date: date | None = None
     is_auto_generated: bool = False
     created_at: datetime | None = Field(default_factory=datetime.now)
+    completed_at: date | None = None
 
 
 class CampaignDetailDB(SQLModel, table=True):

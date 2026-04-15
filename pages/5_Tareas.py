@@ -39,11 +39,20 @@ def days_overdue(task: TaskDB) -> int:
     return (today - task.due_date).days
 
 
-def mark_done(task_id: int) -> None:
+def mark_done(task_id: int, completed_at: date) -> None:
     with Session(engine) as session:
         task = session.get(TaskDB, task_id)
         if task is not None:
             task.status = TaskStatus.done
+            task.completed_at = completed_at
+            session.commit()
+
+
+def reassign(task_id: int, member_id: int | None) -> None:
+    with Session(engine) as session:
+        task = session.get(TaskDB, task_id)
+        if task is not None:
+            task.assigned_to = member_id
             session.commit()
 
 
@@ -77,11 +86,15 @@ st.header("1. Mis tareas")
 if not members:
     st.info("No hay miembros del equipo cargados.")
 else:
-    member_labels = {f"{m.name} ({m.role})": m for m in members}
+    member_labels: dict[str, TeamMemberDB | None] = {
+        f"{m.name} ({m.role})": m for m in members
+    }
+    member_labels["Sin asignar"] = None
     selected_member_label = st.selectbox(
         "Ver tareas de:", list(member_labels.keys()), key="member_select"
     )
     selected_member = member_labels[selected_member_label]
+    selected_member_id = selected_member.id if selected_member else None
     status_filter = st.radio(
         "Filtro",
         ["Todas", "Pendientes", "Vencidas", "Completadas"],
@@ -89,7 +102,7 @@ else:
         key="status_filter",
     )
 
-    member_tasks = [t for t in all_tasks if t.assigned_to == selected_member.id]
+    member_tasks = [t for t in all_tasks if t.assigned_to == selected_member_id]
 
     if status_filter == "Pendientes":
         member_tasks = [t for t in member_tasks if t.status != TaskStatus.done]
@@ -119,10 +132,19 @@ else:
                 else:
                     cols[0].markdown(f"**{t.title}**")
                 cols[1].markdown(f"Vence: {t.due_date or '—'}")
-                cols[2].markdown(f"`{t.status}`")
+                if t.status == TaskStatus.done:
+                    cols[2].markdown(f"`done` · {t.completed_at or '—'}")
+                else:
+                    cols[2].markdown(f"`{t.status}`")
                 if t.status != TaskStatus.done and t.id is not None:
+                    completed_on = cols[3].date_input(
+                        "Fecha de completado",
+                        value=today,
+                        key=f"compdate_mine_{t.id}",
+                        label_visibility="collapsed",
+                    )
                     if cols[3].button("Marcar como hecha", key=f"done_mine_{t.id}"):
-                        mark_done(t.id)
+                        mark_done(t.id, completed_on)
                         st.rerun()
 
 st.divider()
@@ -150,38 +172,70 @@ else:
     if not proj_tasks:
         st.caption("Este proyecto no tiene tareas.")
     else:
-        header_cols = st.columns([1, 5, 2, 2, 2, 2])
+        header_cols = st.columns([1, 4, 3, 2, 2, 2])
         headers = ["Semana", "Tarea", "Asignado", "Estado", "Vencimiento", ""]
         for col, text in zip(header_cols, headers, strict=True):
             col.markdown(f"**{text}**")
+
+        reassign_options: dict[str, int | None] = {"Sin asignar": None}
+        for m in members:
+            if m.id is not None:
+                reassign_options[f"{m.name} ({m.role})"] = m.id
+        reassign_keys = list(reassign_options.keys())
 
         sorted_tasks = sorted(
             proj_tasks,
             key=lambda x: (task_week(x, selected_project), x.due_date or date.max),
         )
         for t in sorted_tasks:
-            row = st.columns([1, 5, 2, 2, 2, 2])
+            row = st.columns([1, 4, 3, 2, 2, 2])
             week = task_week(t, selected_project)
-            assignee = members_by_id.get(t.assigned_to or 0)
-            assignee_name = assignee.name if assignee else "—"
+            assignee = (
+                members_by_id.get(t.assigned_to) if t.assigned_to is not None else None
+            )
+            assignee_name = assignee.name if assignee else "Sin asignar"
             overdue = is_overdue(t)
 
             if overdue:
                 row[0].markdown(f":red[{week}]")
                 row[1].markdown(f":red[⚠️ {t.title}]")
-                row[2].markdown(f":red[{assignee_name}]")
                 row[3].markdown(f":red[`{t.status}`]")
                 row[4].markdown(f":red[{t.due_date}]")
             else:
                 row[0].markdown(str(week))
                 row[1].markdown(t.title)
-                row[2].markdown(assignee_name)
-                row[3].markdown(f"`{t.status}`")
+                if t.status == TaskStatus.done:
+                    row[3].markdown(f"`done` · {t.completed_at or '—'}")
+                else:
+                    row[3].markdown(f"`{t.status}`")
                 row[4].markdown(str(t.due_date or "—"))
 
+            current_idx = 0
+            for i, (_label, mid) in enumerate(reassign_options.items()):
+                if mid == t.assigned_to:
+                    current_idx = i
+                    break
+            new_label = row[2].selectbox(
+                "Asignar",
+                reassign_keys,
+                index=current_idx,
+                key=f"assign_{t.id}",
+                label_visibility="collapsed",
+            )
+            new_member_id = reassign_options[new_label]
+            if new_member_id != t.assigned_to and t.id is not None:
+                reassign(t.id, new_member_id)
+                st.rerun()
+
             if t.status != TaskStatus.done and t.id is not None:
+                completed_on = row[5].date_input(
+                    "Fecha",
+                    value=today,
+                    key=f"compdate_proj_{t.id}",
+                    label_visibility="collapsed",
+                )
                 if row[5].button("Marcar hecha", key=f"done_proj_{t.id}"):
-                    mark_done(t.id)
+                    mark_done(t.id, completed_on)
                     st.rerun()
 
 st.divider()

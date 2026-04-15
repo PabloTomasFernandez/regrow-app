@@ -61,9 +61,9 @@ def project_metrics(
     data: dict[str, object],
 ) -> dict[str, object]:
     today: date = data["today"]  # type: ignore[assignment]
-    campaigns_by_project: dict[int, list[CampaignDetailDB]] = (
-        data["campaigns_by_project"]  # type: ignore[assignment]
-    )
+    campaigns_by_project: dict[int, list[CampaignDetailDB]] = data[
+        "campaigns_by_project"
+    ]  # type: ignore[assignment]
     bps_by_campaign: dict[int, list[BuyerPersonaDB]] = data["bps_by_campaign"]  # type: ignore[assignment]
     tasks_by_project: dict[int, list[TaskDB]] = data["tasks_by_project"]  # type: ignore[assignment]
 
@@ -78,9 +78,7 @@ def project_metrics(
     overdue_tasks = [
         t
         for t in tasks_by_project.get(pid, [])
-        if t.due_date is not None
-        and t.due_date < today
-        and t.status != TaskStatus.done
+        if t.due_date is not None and t.due_date < today and t.status != TaskStatus.done
     ]
 
     return {
@@ -178,8 +176,7 @@ def main() -> None:
         week = current_week(project.activated_at, today)
 
         label = (
-            f"{company_name} — {project.name}"
-            f" (semana {week}/{project.duration_weeks})"
+            f"{company_name} — {project.name} (semana {week}/{project.duration_weeks})"
         )
         with st.expander(label):
             if week > project.duration_weeks:

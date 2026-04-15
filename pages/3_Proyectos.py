@@ -97,11 +97,36 @@ for project in projects:
             f"**Activado:** {project.activated_at or '—'}"
         )
 
+        def change_status(pid: int | None, new_status: ProjectStatus) -> None:
+            if pid is None:
+                st.error("El proyecto no tiene ID.")
+                return
+            with Session(engine) as s:
+                db_proj = s.get(ProjectDB, pid)
+                if db_proj is None:
+                    st.error("Proyecto no encontrado.")
+                    return
+                db_proj.status = new_status
+                s.commit()
+
         if project.status == ProjectStatus.active:
             week = current_week(project.activated_at, today)
             task_count = tasks_by_project.get(project.id or 0, 0)
             st.metric("Semana actual", f"{week}/{project.duration_weeks}")
             st.metric("Tareas", task_count)
+            btn_cols = st.columns(2)
+            if btn_cols[0].button("Pausar proyecto", key=f"pause_{project.id}"):
+                change_status(project.id, ProjectStatus.paused)
+                st.rerun()
+            if btn_cols[1].button("Completar proyecto", key=f"complete_{project.id}"):
+                change_status(project.id, ProjectStatus.completed)
+                st.rerun()
+        elif project.status == ProjectStatus.paused:
+            if st.button("Reactivar proyecto", key=f"resume_{project.id}"):
+                change_status(project.id, ProjectStatus.active)
+                st.rerun()
+        elif project.status == ProjectStatus.completed:
+            st.caption("Proyecto completado.")
         else:
             st.markdown("**Activar proyecto**")
             onboarding_date = st.date_input(
