@@ -163,7 +163,7 @@ def main() -> None:
 
     if not df.empty:
         styled: Any = df.style.apply(highlight_overdue, axis=1)  # pyright: ignore[reportUnknownMemberType]
-        st.dataframe(styled, use_container_width=True, hide_index=True)  # pyright: ignore[reportUnknownMemberType]
+        st.dataframe(styled, width="stretch", hide_index=True)  # pyright: ignore[reportUnknownMemberType]
     else:
         st.info("No hay proyectos activos.")
 

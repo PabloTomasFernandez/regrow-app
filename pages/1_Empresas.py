@@ -48,4 +48,4 @@ else:
         }
         for c in companies
     ]
-    st.dataframe(rows, use_container_width=True, hide_index=True)  # pyright: ignore[reportUnknownMemberType]
+    st.dataframe(rows, width="stretch", hide_index=True)  # pyright: ignore[reportUnknownMemberType]
