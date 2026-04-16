@@ -1,9 +1,9 @@
 import streamlit as st
-from sqlmodel import Session, select
+from sqlmodel import Session, select, update
 
 from regrow.adapters.db.engine import engine
-from regrow.adapters.db.models import TeamMemberDB
-from regrow.domain.models import TeamRole
+from regrow.adapters.db.models import AssignmentDB, ProjectDB, TaskDB, TeamMemberDB
+from regrow.domain.models import ProjectStatus, TaskStatus, TeamRole
 
 st.set_page_config(page_title="Equipo — Regrow", layout="wide")
 st.title("Equipo")
@@ -94,12 +94,94 @@ else:
 
         if m.active:
             if c2.button("Desactivar", key=f"deact_{m.id}"):
+                st.session_state[f"deactivating_{m.id}"] = True
+
+            if st.session_state.get(f"deactivating_{m.id}", False):
                 with Session(engine) as session:
-                    db_m = session.get(TeamMemberDB, m.id)
-                    if db_m is not None:
-                        db_m.active = False
+                    assignments = list(
+                        session.exec(
+                            select(AssignmentDB)
+                            .where(AssignmentDB.member_id == m.id)
+                            .join(ProjectDB, AssignmentDB.project_id == ProjectDB.id)  # type: ignore[arg-type]
+                            .where(ProjectDB.status == ProjectStatus.active)
+                        ).all()
+                    )
+                    pending_tasks = list(
+                        session.exec(
+                            select(TaskDB)
+                            .where(TaskDB.assigned_to == m.id)
+                            .where(TaskDB.status != TaskStatus.done)
+                        ).all()
+                    )
+                    project_ids = {a.project_id for a in assignments}
+
+                n_assignments = len(assignments)
+                n_projects = len(project_ids)
+                n_tasks = len(pending_tasks)
+
+                st.warning(
+                    f"Este miembro tiene **{n_assignments} asignaciones activas** "
+                    f"en **{n_projects} proyectos** y "
+                    f"**{n_tasks} tareas pendientes** asignadas."
+                )
+
+                same_role = [
+                    om
+                    for om in members
+                    if om.active and om.id != m.id and om.role == m.role
+                ]
+                if same_role:
+                    replacement_options = [
+                        f"{om.name} (id {om.id})" for om in same_role
+                    ]
+                    replacement_sel = st.selectbox(
+                        "Reemplazar por:",
+                        replacement_options,
+                        key=f"replace_{m.id}",
+                    )
+                elif n_assignments > 0:
+                    st.info("No hay otros miembros activos con el mismo rol.")
+                    replacement_sel = None
+
+                dc1, dc2, dc3 = st.columns(3)
+                if same_role and dc1.button(
+                    "Reemplazar y desactivar", key=f"replace_deact_{m.id}"
+                ):
+                    new_mid = int(
+                        replacement_sel.split("id ")[-1].rstrip(")")  # type: ignore[union-attr]
+                    )
+                    with Session(engine) as session:
+                        for a in assignments:
+                            session.exec(
+                                update(AssignmentDB)  # type: ignore[call-overload]
+                                .where(AssignmentDB.id == a.id)  # type: ignore[arg-type]
+                                .values(member_id=new_mid)
+                            )
+                        session.exec(
+                            update(TaskDB)  # type: ignore[call-overload]
+                            .where(TaskDB.assigned_to == m.id)  # type: ignore[arg-type]
+                            .where(TaskDB.status != TaskStatus.done)  # type: ignore[arg-type]
+                            .values(assigned_to=new_mid)
+                        )
+                        db_m = session.get(TeamMemberDB, m.id)
+                        if db_m is not None:
+                            db_m.active = False
                         session.commit()
-                st.rerun()
+                    st.session_state[f"deactivating_{m.id}"] = False
+                    st.rerun()
+
+                if dc2.button("Desactivar sin reemplazar", key=f"deact_only_{m.id}"):
+                    with Session(engine) as session:
+                        db_m = session.get(TeamMemberDB, m.id)
+                        if db_m is not None:
+                            db_m.active = False
+                            session.commit()
+                    st.session_state[f"deactivating_{m.id}"] = False
+                    st.rerun()
+
+                if dc3.button("Cancelar", key=f"cancel_deact_{m.id}"):
+                    st.session_state[f"deactivating_{m.id}"] = False
+                    st.rerun()
         else:
             if c2.button("Activar", key=f"act_{m.id}"):
                 with Session(engine) as session:

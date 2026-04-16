@@ -1,7 +1,7 @@
 from datetime import date
 
 import streamlit as st
-from sqlmodel import Session, select
+from sqlmodel import Session, select, update
 
 from regrow.adapters.db.engine import engine
 from regrow.adapters.db.models import (
@@ -13,7 +13,7 @@ from regrow.adapters.db.models import (
     TaskTemplateDB,
     TeamMemberDB,
 )
-from regrow.domain.models import ProjectStatus, TeamRole
+from regrow.domain.models import ProjectStatus, TaskStatus, TeamRole
 from regrow.domain.services import (
     generate_base_tasks,
     generate_checkups,
@@ -29,6 +29,22 @@ def current_week(activated_at: date | None, today: date) -> int:
         return 0
     return max(1, (today - activated_at).days // 7 + 1)
 
+
+def member_label(member: TeamMemberDB) -> str:
+    return f"{member.name} (id {member.id})"
+
+
+def parse_member_id(label_str: str) -> int:
+    return int(label_str.split("id ")[-1].rstrip(")"))
+
+
+ASSIGNMENT_ROLES: list[tuple[str, TeamRole]] = [
+    ("Account Manager", TeamRole.account_manager),
+    ("SDR", TeamRole.sdr),
+    ("Copy", TeamRole.copy),
+    ("Pusher", TeamRole.pusher),
+    ("Automater", TeamRole.automater),
+]
 
 with Session(engine) as session:
     clients = list(session.exec(select(ClientDB)).all())
@@ -52,39 +68,40 @@ def client_label(client: ClientDB) -> str:
     return f"{client.name} {client.apellido} · {company_name} (id {client.id})"
 
 
-def member_label(member: TeamMemberDB) -> str:
-    return f"{member.name} (id {member.id})"
-
-
-ASSIGNMENT_ROLES = [
-    ("Account Manager", TeamRole.account_manager),
-    ("SDR", TeamRole.sdr),
-    ("Copy", TeamRole.copy),
-    ("Pusher", TeamRole.pusher),
-    ("Automater", TeamRole.automater),
-]
-
 client_by_label = {client_label(c): c for c in clients}
 
+# --- Crear proyecto ---
+
+st.subheader("Crear proyecto")
+
+st.markdown("**Equipo del proyecto**")
+for display_name, role_enum in ASSIGNMENT_ROLES:
+    candidates = members_by_role.get(role_enum, [])
+    if not candidates:
+        st.warning(
+            f"⚠️ No hay miembros con rol {display_name}. "
+            "Creá uno en la página Equipo antes de asignar este rol."
+        )
+    show_all = st.checkbox(
+        f"Mostrar todos los miembros para {display_name}",
+        key=f"show_all_{role_enum}",
+    )
+    if show_all:
+        candidates = active_members
+    if candidates:
+        options = [member_label(m) for m in candidates]
+        st.selectbox(
+            display_name,
+            options,
+            key=f"role_{role_enum}",
+        )
+
 with st.form("create_project", clear_on_submit=True):
-    st.subheader("Crear proyecto")
     label = st.selectbox("Cliente *", list(client_by_label.keys()))
     name = st.text_input("Nombre del proyecto *")
     duration_weeks = st.number_input(
         "Duración (semanas)", min_value=1, max_value=52, value=14, step=1
     )
-
-    st.markdown("**Equipo del proyecto**")
-    role_selections: dict[str, str] = {}
-    for display_name, role_enum in ASSIGNMENT_ROLES:
-        candidates = members_by_role.get(role_enum, [])
-        if not candidates:
-            candidates = active_members
-        options = [member_label(m) for m in candidates]
-        role_selections[role_enum] = st.selectbox(
-            display_name, options, key=f"role_{role_enum}"
-        )
-
     submitted = st.form_submit_button("Crear proyecto")
 
     if submitted:
@@ -106,28 +123,38 @@ with st.form("create_project", clear_on_submit=True):
                     session.refresh(project)
                     assert project.id is not None
 
-                    for role_val, sel_label in role_selections.items():
-                        mid_str = sel_label.split("id ")[-1].rstrip(")")
-                        session.add(
-                            AssignmentDB(
-                                project_id=project.id,
-                                member_id=int(mid_str),
-                                role=role_val,
+                    for _dn, role_enum in ASSIGNMENT_ROLES:
+                        sel = st.session_state.get(f"role_{role_enum}")
+                        if sel is not None:
+                            mid = parse_member_id(sel)
+                            session.add(
+                                AssignmentDB(
+                                    project_id=project.id,
+                                    member_id=mid,
+                                    role=role_enum,
+                                )
                             )
-                        )
                     session.commit()
                 st.success(f"Proyecto '{name}' creado con equipo asignado.")
                 st.rerun()
 
+st.divider()
 st.subheader("Listado de proyectos")
 
 with Session(engine) as session:
     projects = list(session.exec(select(ProjectDB)).all())
     clients_by_id = {c.id: c for c in session.exec(select(ClientDB)).all()}
-    tasks_by_project: dict[int, int] = {}
-    for task in session.exec(select(TaskDB)).all():
-        tasks_by_project[task.project_id] = tasks_by_project.get(task.project_id, 0) + 1
+    tasks_by_project_count: dict[int, int] = {}
+    all_tasks_list = list(session.exec(select(TaskDB)).all())
+    for task in all_tasks_list:
+        tasks_by_project_count[task.project_id] = (
+            tasks_by_project_count.get(task.project_id, 0) + 1
+        )
     all_assignments = list(session.exec(select(AssignmentDB)).all())
+
+tasks_by_project: dict[int, list[TaskDB]] = {}
+for t in all_tasks_list:
+    tasks_by_project.setdefault(t.project_id, []).append(t)
 
 assignments_by_project: dict[int, list[AssignmentDB]] = {}
 for a in all_assignments:
@@ -165,6 +192,60 @@ for project in projects:
                 team_lines.append(f"- **{a.role}**: {m_name}")
             st.markdown("**Equipo:**  \n" + "  \n".join(team_lines))
 
+        # --- Cambiar rol en este proyecto ---
+        if proj_assignments and project.id is not None:
+            st.markdown("**Cambiar rol en este proyecto**")
+            for a in proj_assignments:
+                cur_member = members_by_id.get(a.member_id)
+                cur_name = cur_member.name if cur_member else "?"
+                change_key = f"change_{project.id}_{a.id}"
+
+                col_info, col_btn = st.columns([4, 1])
+                col_info.markdown(f"`{a.role}`: {cur_name}")
+                if col_btn.button("Cambiar", key=change_key):
+                    st.session_state[f"changing_{a.id}"] = True
+
+                if st.session_state.get(f"changing_{a.id}", False):
+                    role_candidates = members_by_role.get(a.role, [])
+                    show_all_r = st.checkbox(
+                        "Mostrar todos",
+                        key=f"show_all_reassign_{a.id}",
+                    )
+                    if show_all_r:
+                        role_candidates = active_members
+                    if not role_candidates:
+                        st.warning("No hay miembros activos con este rol.")
+                    else:
+                        new_sel = st.selectbox(
+                            "Nuevo miembro",
+                            [member_label(m) for m in role_candidates],
+                            key=f"new_member_{a.id}",
+                        )
+                        c1, c2 = st.columns(2)
+                        if c1.button("Confirmar cambio", key=f"confirm_{a.id}"):
+                            new_mid = parse_member_id(new_sel)
+                            old_mid = a.member_id
+                            pid = project.id
+                            with Session(engine) as session:
+                                session.exec(
+                                    update(AssignmentDB)  # type: ignore[call-overload]
+                                    .where(AssignmentDB.id == a.id)
+                                    .values(member_id=new_mid)
+                                )
+                                session.exec(
+                                    update(TaskDB)  # type: ignore[call-overload]
+                                    .where(TaskDB.project_id == pid)
+                                    .where(TaskDB.assigned_to == old_mid)
+                                    .where(TaskDB.status != TaskStatus.done)
+                                    .values(assigned_to=new_mid)
+                                )
+                                session.commit()
+                            st.session_state[f"changing_{a.id}"] = False
+                            st.rerun()
+                        if c2.button("Cancelar", key=f"cancel_{a.id}"):
+                            st.session_state[f"changing_{a.id}"] = False
+                            st.rerun()
+
         def change_status(pid: int | None, new_status: ProjectStatus) -> None:
             if pid is None:
                 st.error("El proyecto no tiene ID.")
@@ -179,7 +260,7 @@ for project in projects:
 
         if project.status == ProjectStatus.active:
             week = current_week(project.activated_at, today)
-            task_count = tasks_by_project.get(project.id or 0, 0)
+            task_count = tasks_by_project_count.get(project.id or 0, 0)
             st.metric("Semana actual", f"{week}/{project.duration_weeks}")
             st.metric("Tareas", task_count)
             btn_cols = st.columns(2)
@@ -216,7 +297,11 @@ for project in projects:
                     tmpl_list: list[TaskTemplate] | None = None
                     if db_templates:
                         tmpl_list = [
-                            TaskTemplate(name=tt.title, role=tt.role, week=tt.week)
+                            TaskTemplate(
+                                name=tt.title,
+                                role=tt.role,
+                                week=tt.week,
+                            )
                             for tt in db_templates
                             if tt.category == "base"
                         ]
@@ -224,12 +309,16 @@ for project in projects:
                     tasks = generate_base_tasks(project.id, onboarding_date, tmpl_list)
                     tasks.extend(
                         generate_checkups(
-                            project.id, onboarding_date, project.duration_weeks
+                            project.id,
+                            onboarding_date,
+                            project.duration_weeks,
                         )
                     )
                     tasks.extend(
                         generate_closing_tasks(
-                            project.id, onboarding_date, project.duration_weeks
+                            project.id,
+                            onboarding_date,
+                            project.duration_weeks,
                         )
                     )
 
@@ -269,7 +358,7 @@ for project in projects:
                                         status=t.status,
                                         assigned_to=t.assigned_to,
                                         due_date=t.due_date,
-                                        is_auto_generated=t.is_auto_generated,
+                                        is_auto_generated=(t.is_auto_generated),
                                     )
                                 )
                             session.commit()
