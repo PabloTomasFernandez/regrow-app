@@ -39,8 +39,10 @@ if not clients:
     st.warning("Primero tenés que crear al menos un cliente.")
     st.stop()
 
+active_members = [m for m in all_members if m.active]
+
 members_by_role: dict[str, list[TeamMemberDB]] = {}
-for m in all_members:
+for m in active_members:
     members_by_role.setdefault(m.role, []).append(m)
 
 
@@ -77,7 +79,7 @@ with st.form("create_project", clear_on_submit=True):
     for display_name, role_enum in ASSIGNMENT_ROLES:
         candidates = members_by_role.get(role_enum, [])
         if not candidates:
-            candidates = all_members
+            candidates = active_members
         options = [member_label(m) for m in candidates]
         role_selections[role_enum] = st.selectbox(
             display_name, options, key=f"role_{role_enum}"

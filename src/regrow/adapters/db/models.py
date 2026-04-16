@@ -37,6 +37,7 @@ class TeamMemberDB(SQLModel, table=True):
     role: TeamRole
     email: str | None = None
     is_admin: bool = False
+    active: bool = True
 
 
 class ProjectDB(SQLModel, table=True):
