@@ -29,17 +29,18 @@ def task_date_for_week(onboarding_date: date, week: int) -> date:
 def generate_base_tasks(
     project_id: int,
     onboarding_date: date,
+    templates: list[TaskTemplate] | None = None,
 ) -> list[Task]:
     """Genera las tareas base del proyecto al activar."""
+    source = templates if templates is not None else BASE_TASKS
     tasks: list[Task] = []
 
-    for template in BASE_TASKS:
+    for template in source:
         task = _task_from_template(
             project_id=project_id,
             template=template,
             due_date=task_date_for_week(onboarding_date, template.week),
         )
-        # Onboarding COO se marca como completada automáticamente
         if template.name == "Onboarding COO":
             task.status = TaskStatus.done
 

@@ -67,6 +67,17 @@ class TaskDB(SQLModel, table=True):
     completed_at: date | None = None
 
 
+class TaskTemplateDB(SQLModel, table=True):
+    __tablename__ = "task_templates"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    title: str
+    description: str | None = None
+    role: str
+    week: int
+    category: str = "base"
+
+
 class AssignmentDB(SQLModel, table=True):
     __tablename__ = "assignments"  # type: ignore[assignment]
 

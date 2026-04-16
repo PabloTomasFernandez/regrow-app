@@ -10,6 +10,7 @@ from regrow.adapters.db.models import (
     CompanyDB,
     ProjectDB,
     TaskDB,
+    TaskTemplateDB,
     TeamMemberDB,
 )
 from regrow.domain.models import ProjectStatus, TeamRole
@@ -18,6 +19,7 @@ from regrow.domain.services import (
     generate_checkups,
     generate_closing_tasks,
 )
+from regrow.domain.templates import BASE_TASKS
 
 
 def reset_db() -> None:
@@ -132,11 +134,20 @@ def seed_campaign(
     session.commit()
 
 
+def seed_task_templates(session: Session) -> None:
+    for t in BASE_TASKS:
+        session.add(
+            TaskTemplateDB(title=t.name, role=t.role, week=t.week, category="base")
+        )
+    session.commit()
+
+
 def main() -> None:
     reset_db()
 
     with Session(engine) as session:
         seed_team(session)
+        seed_task_templates(session)
 
         prod4dev = seed_project(
             session,

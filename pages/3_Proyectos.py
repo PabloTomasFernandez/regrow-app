@@ -10,6 +10,7 @@ from regrow.adapters.db.models import (
     CompanyDB,
     ProjectDB,
     TaskDB,
+    TaskTemplateDB,
     TeamMemberDB,
 )
 from regrow.domain.models import ProjectStatus, TeamRole
@@ -203,7 +204,22 @@ for project in projects:
                 if project.id is None:
                     st.error("El proyecto no tiene ID.")
                 else:
-                    tasks = generate_base_tasks(project.id, onboarding_date)
+                    from regrow.domain.templates import TaskTemplate
+
+                    with Session(engine) as tmpl_session:
+                        db_templates = list(
+                            tmpl_session.exec(select(TaskTemplateDB)).all()
+                        )
+
+                    tmpl_list: list[TaskTemplate] | None = None
+                    if db_templates:
+                        tmpl_list = [
+                            TaskTemplate(name=tt.title, role=tt.role, week=tt.week)
+                            for tt in db_templates
+                            if tt.category == "base"
+                        ]
+
+                    tasks = generate_base_tasks(project.id, onboarding_date, tmpl_list)
                     tasks.extend(
                         generate_checkups(
                             project.id, onboarding_date, project.duration_weeks
@@ -219,14 +235,20 @@ for project in projects:
                     for a in proj_assignments:
                         role_to_member[a.role] = a.member_id
 
+                    tmpl_role_map: dict[str, str] = {}
+                    source = tmpl_list or []
+                    if not source:
+                        from regrow.domain.templates import BASE_TASKS
+
+                        source = list(BASE_TASKS)
+                    for tmpl in source:
+                        tmpl_role_map[tmpl.name] = tmpl.role
+
                     for t in tasks:
                         if t.assigned_to is None:
-                            from regrow.domain.templates import BASE_TASKS
-
-                            for tmpl in BASE_TASKS:
-                                if tmpl.name == t.title:
-                                    t.assigned_to = role_to_member.get(tmpl.role)
-                                    break
+                            role = tmpl_role_map.get(t.title)
+                            if role:
+                                t.assigned_to = role_to_member.get(role)
 
                     with Session(engine) as session:
                         db_project = session.get(ProjectDB, project.id)
