@@ -4,8 +4,15 @@ import streamlit as st
 from sqlmodel import Session, select
 
 from regrow.adapters.db.engine import engine
-from regrow.adapters.db.models import ClientDB, CompanyDB, ProjectDB, TaskDB
-from regrow.domain.models import ProjectStatus
+from regrow.adapters.db.models import (
+    AssignmentDB,
+    ClientDB,
+    CompanyDB,
+    ProjectDB,
+    TaskDB,
+    TeamMemberDB,
+)
+from regrow.domain.models import ProjectStatus, TeamRole
 from regrow.domain.services import (
     generate_base_tasks,
     generate_checkups,
@@ -25,10 +32,15 @@ def current_week(activated_at: date | None, today: date) -> int:
 with Session(engine) as session:
     clients = list(session.exec(select(ClientDB)).all())
     companies_by_id = {c.id: c for c in session.exec(select(CompanyDB)).all()}
+    all_members = list(session.exec(select(TeamMemberDB)).all())
 
 if not clients:
     st.warning("Primero tenés que crear al menos un cliente.")
     st.stop()
+
+members_by_role: dict[str, list[TeamMemberDB]] = {}
+for m in all_members:
+    members_by_role.setdefault(m.role, []).append(m)
 
 
 def client_label(client: ClientDB) -> str:
@@ -36,6 +48,18 @@ def client_label(client: ClientDB) -> str:
     company_name = company.name if company else "—"
     return f"{client.name} {client.apellido} · {company_name} (id {client.id})"
 
+
+def member_label(member: TeamMemberDB) -> str:
+    return f"{member.name} (id {member.id})"
+
+
+ASSIGNMENT_ROLES = [
+    ("Account Manager", TeamRole.account_manager),
+    ("SDR", TeamRole.sdr),
+    ("Copy", TeamRole.copy),
+    ("Pusher", TeamRole.pusher),
+    ("Automater", TeamRole.automater),
+]
 
 client_by_label = {client_label(c): c for c in clients}
 
@@ -46,6 +70,18 @@ with st.form("create_project", clear_on_submit=True):
     duration_weeks = st.number_input(
         "Duración (semanas)", min_value=1, max_value=52, value=14, step=1
     )
+
+    st.markdown("**Equipo del proyecto**")
+    role_selections: dict[str, str] = {}
+    for display_name, role_enum in ASSIGNMENT_ROLES:
+        candidates = members_by_role.get(role_enum, [])
+        if not candidates:
+            candidates = all_members
+        options = [member_label(m) for m in candidates]
+        role_selections[role_enum] = st.selectbox(
+            display_name, options, key=f"role_{role_enum}"
+        )
+
     submitted = st.form_submit_button("Crear proyecto")
 
     if submitted:
@@ -64,7 +100,20 @@ with st.form("create_project", clear_on_submit=True):
                     )
                     session.add(project)
                     session.commit()
-                st.success(f"Proyecto '{name}' creado.")
+                    session.refresh(project)
+                    assert project.id is not None
+
+                    for role_val, sel_label in role_selections.items():
+                        mid_str = sel_label.split("id ")[-1].rstrip(")")
+                        session.add(
+                            AssignmentDB(
+                                project_id=project.id,
+                                member_id=int(mid_str),
+                                role=role_val,
+                            )
+                        )
+                    session.commit()
+                st.success(f"Proyecto '{name}' creado con equipo asignado.")
                 st.rerun()
 
 st.subheader("Listado de proyectos")
@@ -75,6 +124,13 @@ with Session(engine) as session:
     tasks_by_project: dict[int, int] = {}
     for task in session.exec(select(TaskDB)).all():
         tasks_by_project[task.project_id] = tasks_by_project.get(task.project_id, 0) + 1
+    all_assignments = list(session.exec(select(AssignmentDB)).all())
+
+assignments_by_project: dict[int, list[AssignmentDB]] = {}
+for a in all_assignments:
+    assignments_by_project.setdefault(a.project_id, []).append(a)
+
+members_by_id = {m.id: m for m in all_members}
 
 if not projects:
     st.info("Todavía no hay proyectos cargados.")
@@ -96,6 +152,15 @@ for project in projects:
             f"**Duración:** {project.duration_weeks} semanas  \n"
             f"**Activado:** {project.activated_at or '—'}"
         )
+
+        proj_assignments = assignments_by_project.get(project.id or 0, [])
+        if proj_assignments:
+            team_lines: list[str] = []
+            for a in proj_assignments:
+                m = members_by_id.get(a.member_id)
+                m_name = m.name if m else f"ID {a.member_id}"
+                team_lines.append(f"- **{a.role}**: {m_name}")
+            st.markdown("**Equipo:**  \n" + "  \n".join(team_lines))
 
         def change_status(pid: int | None, new_status: ProjectStatus) -> None:
             if pid is None:
@@ -149,6 +214,19 @@ for project in projects:
                             project.id, onboarding_date, project.duration_weeks
                         )
                     )
+
+                    role_to_member: dict[str, int] = {}
+                    for a in proj_assignments:
+                        role_to_member[a.role] = a.member_id
+
+                    for t in tasks:
+                        if t.assigned_to is None:
+                            from regrow.domain.templates import BASE_TASKS
+
+                            for tmpl in BASE_TASKS:
+                                if tmpl.name == t.title:
+                                    t.assigned_to = role_to_member.get(tmpl.role)
+                                    break
 
                     with Session(engine) as session:
                         db_project = session.get(ProjectDB, project.id)

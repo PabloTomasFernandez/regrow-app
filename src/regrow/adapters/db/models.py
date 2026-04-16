@@ -67,6 +67,15 @@ class TaskDB(SQLModel, table=True):
     completed_at: date | None = None
 
 
+class AssignmentDB(SQLModel, table=True):
+    __tablename__ = "assignments"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="projects.id")
+    member_id: int = Field(foreign_key="team_members.id")
+    role: str
+
+
 class CampaignDetailDB(SQLModel, table=True):
     __tablename__ = "campaign_details"  # type: ignore[assignment]
 

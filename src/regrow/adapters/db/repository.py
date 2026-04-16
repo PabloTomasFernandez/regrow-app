@@ -3,6 +3,7 @@ from datetime import date
 from sqlmodel import Session, select
 
 from regrow.adapters.db.models import (
+    AssignmentDB,
     BuyerPersonaDB,
     CampaignDetailDB,
     ClientDB,
@@ -120,6 +121,18 @@ class Repository:
         self.session.commit()
         self.session.refresh(task)
         return task
+
+    # --- Assignments ---
+
+    def create_assignment(self, assignment: AssignmentDB) -> AssignmentDB:
+        self.session.add(assignment)
+        self.session.commit()
+        self.session.refresh(assignment)
+        return assignment
+
+    def get_assignments_by_project(self, project_id: int) -> list[AssignmentDB]:
+        statement = select(AssignmentDB).where(AssignmentDB.project_id == project_id)
+        return list(self.session.exec(statement).all())
 
     # --- Campaigns ---
 
