@@ -96,6 +96,7 @@ class Task(BaseModel):
     assigned_to: int | None = None
     due_date: date | None = None
     is_auto_generated: bool = False
+    campaign_id: int | None = None
     created_at: datetime | None = None
 
 

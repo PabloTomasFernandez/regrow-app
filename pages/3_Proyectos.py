@@ -6,6 +6,7 @@ from sqlmodel import Session, select, update
 from regrow.adapters.db.engine import engine
 from regrow.adapters.db.models import (
     AssignmentDB,
+    CampaignDetailDB,
     ClientDB,
     CompanyDB,
     ProjectDB,
@@ -13,12 +14,14 @@ from regrow.adapters.db.models import (
     TaskTemplateDB,
     TeamMemberDB,
 )
-from regrow.domain.models import ProjectStatus, TaskStatus, TeamRole
+from regrow.domain.models import CampaignType, ProjectStatus, TaskStatus, TeamRole
 from regrow.domain.services import (
     generate_base_tasks,
+    generate_campaign_tasks,
     generate_checkups,
     generate_closing_tasks,
 )
+from regrow.domain.templates import CAMPAIGN_NORMAL, CAMPAIGN_START_WEEKS
 
 st.set_page_config(page_title="Proyectos — Regrow", layout="wide")
 st.title("Proyectos")
@@ -341,6 +344,7 @@ for project in projects:
                             if role:
                                 t.assigned_to = role_to_member.get(role)
 
+                    campaign_task_count = 0
                     with Session(engine) as session:
                         db_project = session.get(ProjectDB, project.id)
                         if db_project is None:
@@ -361,6 +365,49 @@ for project in projects:
                                         is_auto_generated=(t.is_auto_generated),
                                     )
                                 )
+
+                            campaign_task_count = 0
+                            for idx, start_week in enumerate(
+                                CAMPAIGN_START_WEEKS, start=1
+                            ):
+                                campaign = CampaignDetailDB(
+                                    project_id=project.id,
+                                    number=idx,
+                                    campaign_type=CampaignType.normal.value,
+                                )
+                                session.add(campaign)
+                                session.flush()
+                                assert campaign.id is not None
+
+                                camp_tasks = generate_campaign_tasks(
+                                    project_id=project.id,
+                                    campaign_start_week=start_week,
+                                    onboarding_date=onboarding_date,
+                                    campaign_templates=CAMPAIGN_NORMAL,
+                                    campaign_label=f"Campaña {idx}",
+                                    campaign_id=campaign.id,
+                                    role_to_member=role_to_member,
+                                )
+                                for ct in camp_tasks:
+                                    session.add(
+                                        TaskDB(
+                                            project_id=ct.project_id,
+                                            title=ct.title,
+                                            description=ct.description,
+                                            notes=ct.notes,
+                                            status=ct.status,
+                                            assigned_to=ct.assigned_to,
+                                            due_date=ct.due_date,
+                                            is_auto_generated=ct.is_auto_generated,
+                                            campaign_id=ct.campaign_id,
+                                        )
+                                    )
+                                campaign_task_count += len(camp_tasks)
+
                             session.commit()
-                    st.success(f"Proyecto activado. {len(tasks)} tareas generadas.")
+                    st.success(
+                        f"Proyecto activado. {len(tasks)} tareas base + "
+                        f"{campaign_task_count} tareas de campaña generadas "
+                        "(3 campañas creadas)."
+                    )
                     st.rerun()

@@ -1,3 +1,5 @@
+from datetime import date
+
 import streamlit as st
 from sqlmodel import Session, select
 
@@ -8,8 +10,10 @@ from regrow.adapters.db.models import (
     ClientDB,
     CompanyDB,
     ProjectDB,
+    TaskDB,
+    TeamMemberDB,
 )
-from regrow.domain.models import CampaignType, CopyStatus, ProjectStatus
+from regrow.domain.models import CampaignType, CopyStatus, ProjectStatus, TaskStatus
 
 st.set_page_config(page_title="Campañas — Regrow", layout="wide")
 st.title("Campañas")
@@ -90,10 +94,21 @@ with Session(engine) as session:
         ).all()
     )
     all_bps = list(session.exec(select(BuyerPersonaDB)).all())
+    project_tasks = list(
+        session.exec(select(TaskDB).where(TaskDB.project_id == project_id)).all()
+    )
+    team_members = list(session.exec(select(TeamMemberDB)).all())
 
 bps_by_campaign: dict[int, list[BuyerPersonaDB]] = {}
 for bp in all_bps:
     bps_by_campaign.setdefault(bp.campaign_detail_id, []).append(bp)
+
+tasks_by_campaign: dict[int, list[TaskDB]] = {}
+for t in project_tasks:
+    if t.campaign_id is not None:
+        tasks_by_campaign.setdefault(t.campaign_id, []).append(t)
+
+members_by_id = {m.id: m for m in team_members}
 
 if not campaigns:
     st.info("Este proyecto todavía no tiene campañas.")
@@ -104,20 +119,89 @@ NEXT_STATUS = {
     CopyStatus.validated.value: CopyStatus.draft.value,
 }
 
+CAMPAIGN_TYPES = [CampaignType.normal.value, CampaignType.event.value]
+
 for campaign in campaigns:
     if campaign.id is None:
         continue
     campaign_id: int = campaign.id
+    industry_label = campaign.industry or "sin industria"
+    country_label = campaign.country or "sin país"
     header = (
-        f"Campaña #{campaign.number} · {campaign.industry} / {campaign.country}"
+        f"Campaña #{campaign.number} · {industry_label} / {country_label}"
         f" · `{campaign.copy_status}`"
     )
     with st.expander(header):
-        st.markdown(
-            f"**Tipo:** {campaign.campaign_type}  \n"
-            f"**Tamaño:** {campaign.company_size or '—'}  \n"
-            f"**Evento:** {campaign.event_name or '—'}"
+        st.markdown("**Editar detalles**")
+        with st.form(f"edit_campaign_{campaign_id}"):
+            type_idx = (
+                CAMPAIGN_TYPES.index(campaign.campaign_type)
+                if campaign.campaign_type in CAMPAIGN_TYPES
+                else 0
+            )
+            new_type = st.selectbox(
+                "Tipo", CAMPAIGN_TYPES, index=type_idx, key=f"type_{campaign_id}"
+            )
+            new_industry = st.text_input(
+                "Industria",
+                value=campaign.industry,
+                key=f"ind_{campaign_id}",
+            )
+            new_country = st.text_input(
+                "País",
+                value=campaign.country,
+                key=f"cty_{campaign_id}",
+            )
+            new_size = st.text_input(
+                "Tamaño de empresa",
+                value=campaign.company_size,
+                key=f"size_{campaign_id}",
+            )
+            new_event = st.text_input(
+                "Nombre del evento (solo si tipo = event)",
+                value=campaign.event_name or "",
+                key=f"evt_{campaign_id}",
+            )
+            edit_submitted = st.form_submit_button("Guardar cambios")
+
+            if edit_submitted:
+                if new_type == CampaignType.event.value and not new_event.strip():
+                    st.error(
+                        "El nombre del evento es obligatorio para campañas tipo event."
+                    )
+                else:
+                    with Session(engine) as session:
+                        db_camp = session.get(CampaignDetailDB, campaign_id)
+                        if db_camp is not None:
+                            db_camp.campaign_type = new_type
+                            db_camp.industry = new_industry.strip()
+                            db_camp.country = new_country.strip()
+                            db_camp.company_size = new_size.strip()
+                            db_camp.event_name = new_event.strip() or None
+                            session.commit()
+                    st.success("Campaña actualizada.")
+                    st.rerun()
+
+        st.markdown("**Tareas de la campaña**")
+        camp_tasks = sorted(
+            tasks_by_campaign.get(campaign_id, []),
+            key=lambda t: t.due_date or date.max,
         )
+        if not camp_tasks:
+            st.caption("Sin tareas asociadas.")
+        else:
+            for t in camp_tasks:
+                assignee = (
+                    members_by_id.get(t.assigned_to)
+                    if t.assigned_to is not None
+                    else None
+                )
+                assignee_name = assignee.name if assignee else "Sin asignar"
+                status_icon = "✅" if t.status == TaskStatus.done else "⏳"
+                st.markdown(
+                    f"- {status_icon} **{t.title}** · {assignee_name} · "
+                    f"vence {t.due_date or '—'} · `{t.status}`"
+                )
 
         st.markdown("**Agregar buyer persona**")
         with st.form(f"create_bp_{campaign_id}", clear_on_submit=True):

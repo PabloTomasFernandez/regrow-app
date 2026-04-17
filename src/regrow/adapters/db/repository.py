@@ -96,6 +96,7 @@ class Repository:
                 assigned_to=task.assigned_to,
                 due_date=task.due_date,
                 is_auto_generated=task.is_auto_generated,
+                campaign_id=task.campaign_id,
             )
             self.session.add(task_db)
 

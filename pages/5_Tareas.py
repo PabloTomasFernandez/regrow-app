@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from regrow.adapters.db.engine import engine
 from regrow.adapters.db.models import (
+    CampaignDetailDB,
     ClientDB,
     CompanyDB,
     ProjectDB,
@@ -62,9 +63,20 @@ with Session(engine) as session:
     clients_by_id = {c.id: c for c in session.exec(select(ClientDB)).all()}
     companies_by_id = {c.id: c for c in session.exec(select(CompanyDB)).all()}
     all_tasks = list(session.exec(select(TaskDB)).all())
+    all_campaigns = list(session.exec(select(CampaignDetailDB)).all())
 
 members_by_id = {m.id: m for m in members}
 projects_by_id = {p.id: p for p in projects}
+campaign_number_by_id: dict[int, int] = {
+    c.id: c.number for c in all_campaigns if c.id is not None
+}
+
+
+def campaign_label(task: TaskDB) -> str:
+    if task.campaign_id is None:
+        return "General"
+    number = campaign_number_by_id.get(task.campaign_id)
+    return f"#{number}" if number is not None else "—"
 
 
 def project_company(project: ProjectDB) -> str:
@@ -172,8 +184,16 @@ else:
     if not proj_tasks:
         st.caption("Este proyecto no tiene tareas.")
     else:
-        header_cols = st.columns([1, 4, 3, 2, 2, 2])
-        headers = ["Semana", "Tarea", "Asignado", "Estado", "Vencimiento", ""]
+        header_cols = st.columns([1, 1, 4, 3, 2, 2, 2])
+        headers = [
+            "Semana",
+            "Campaña",
+            "Tarea",
+            "Asignado",
+            "Estado",
+            "Vencimiento",
+            "",
+        ]
         for col, text in zip(header_cols, headers, strict=True):
             col.markdown(f"**{text}**")
 
@@ -188,34 +208,37 @@ else:
             key=lambda x: (task_week(x, selected_project), x.due_date or date.max),
         )
         for t in sorted_tasks:
-            row = st.columns([1, 4, 3, 2, 2, 2])
+            row = st.columns([1, 1, 4, 3, 2, 2, 2])
             week = task_week(t, selected_project)
             assignee = (
                 members_by_id.get(t.assigned_to) if t.assigned_to is not None else None
             )
             assignee_name = assignee.name if assignee else "Sin asignar"
             overdue = is_overdue(t)
+            camp_text = campaign_label(t)
 
             if overdue:
                 row[0].markdown(f":red[{week}]")
-                row[1].markdown(f":red[⚠️ {t.title}]")
-                row[3].markdown(f":red[`{t.status}`]")
-                row[4].markdown(f":red[{t.due_date}]")
+                row[1].markdown(f":red[{camp_text}]")
+                row[2].markdown(f":red[⚠️ {t.title}]")
+                row[4].markdown(f":red[`{t.status}`]")
+                row[5].markdown(f":red[{t.due_date}]")
             else:
                 row[0].markdown(str(week))
-                row[1].markdown(t.title)
+                row[1].markdown(camp_text)
+                row[2].markdown(t.title)
                 if t.status == TaskStatus.done:
-                    row[3].markdown(f"`done` · {t.completed_at or '—'}")
+                    row[4].markdown(f"`done` · {t.completed_at or '—'}")
                 else:
-                    row[3].markdown(f"`{t.status}`")
-                row[4].markdown(str(t.due_date or "—"))
+                    row[4].markdown(f"`{t.status}`")
+                row[5].markdown(str(t.due_date or "—"))
 
             current_idx = 0
             for i, (_label, mid) in enumerate(reassign_options.items()):
                 if mid == t.assigned_to:
                     current_idx = i
                     break
-            new_label = row[2].selectbox(
+            new_label = row[3].selectbox(
                 "Asignar",
                 reassign_keys,
                 index=current_idx,
@@ -228,13 +251,13 @@ else:
                 st.rerun()
 
             if t.status != TaskStatus.done and t.id is not None:
-                completed_on = row[5].date_input(
+                completed_on = row[6].date_input(
                     "Fecha",
                     value=today,
                     key=f"compdate_proj_{t.id}",
                     label_visibility="collapsed",
                 )
-                if row[5].button("Marcar hecha", key=f"done_proj_{t.id}"):
+                if row[6].button("Marcar hecha", key=f"done_proj_{t.id}"):
                     mark_done(t.id, completed_on)
                     st.rerun()
 

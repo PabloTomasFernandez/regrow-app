@@ -64,6 +64,7 @@ class TaskDB(SQLModel, table=True):
     assigned_to: int | None = Field(default=None, foreign_key="team_members.id")
     due_date: date | None = None
     is_auto_generated: bool = False
+    campaign_id: int | None = Field(default=None, foreign_key="campaign_details.id")
     created_at: datetime | None = Field(default_factory=datetime.now)
     completed_at: date | None = None
 
@@ -95,8 +96,8 @@ class CampaignDetailDB(SQLModel, table=True):
     project_id: int = Field(foreign_key="projects.id")
     number: int
     campaign_type: str = "normal"
-    industry: str
-    country: str
+    industry: str = ""
+    country: str = ""
     company_size: str = ""
     event_name: str | None = None
     copy_status: str = "draft"

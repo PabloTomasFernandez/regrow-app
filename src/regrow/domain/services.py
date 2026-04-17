@@ -55,6 +55,8 @@ def generate_campaign_tasks(
     onboarding_date: date,
     campaign_templates: list[CampaignTaskTemplate],
     campaign_label: str,
+    campaign_id: int | None = None,
+    role_to_member: dict[str, int] | None = None,
 ) -> list[Task]:
     """Genera las tareas de una campaña específica."""
     tasks: list[Task] = []
@@ -62,6 +64,9 @@ def generate_campaign_tasks(
     for template in campaign_templates:
         actual_week = campaign_start_week + template.week_offset
         due_date = task_date_for_week(onboarding_date, actual_week)
+        assigned_to = (
+            role_to_member.get(template.role) if role_to_member is not None else None
+        )
 
         task = Task(
             project_id=project_id,
@@ -69,6 +74,8 @@ def generate_campaign_tasks(
             status=TaskStatus.pending,
             due_date=due_date,
             is_auto_generated=True,
+            campaign_id=campaign_id,
+            assigned_to=assigned_to,
         )
         tasks.append(task)
 
