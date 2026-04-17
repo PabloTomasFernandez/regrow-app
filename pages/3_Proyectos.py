@@ -6,13 +6,17 @@ from sqlmodel import Session, select, update
 from regrow.adapters.db.engine import engine
 from regrow.adapters.db.models import (
     AssignmentDB,
+    BuyerPersonaDB,
     CampaignDetailDB,
     ClientDB,
     CompanyDB,
+    MessageDB,
     ProjectDB,
+    SequenceDB,
     TaskDB,
     TaskTemplateDB,
     TeamMemberDB,
+    ValidationDB,
 )
 from regrow.domain.models import CampaignType, ProjectStatus, TaskStatus, TeamRole
 from regrow.domain.services import (
@@ -410,4 +414,107 @@ for project in projects:
                         f"{campaign_task_count} tareas de campaña generadas "
                         "(3 campañas creadas)."
                     )
+                    st.rerun()
+
+        if project.status in (ProjectStatus.draft, ProjectStatus.paused):
+            st.divider()
+            st.markdown("**Eliminar proyecto**")
+            del_key = f"deleting_project_{project.id}"
+            is_deleting = st.session_state.get(del_key, False)
+
+            if not is_deleting:
+                if st.button("Eliminar proyecto", key=f"del_btn_{project.id}"):
+                    st.session_state[del_key] = True
+                    st.rerun()
+            else:
+                st.warning(
+                    "⚠️ Esto eliminará el proyecto, sus tareas, campañas, "
+                    "buyer personas, asignaciones y todo lo asociado. "
+                    "Esta acción no se puede deshacer."
+                )
+                typed = st.text_input(
+                    f"Escribí el nombre del proyecto para confirmar: "
+                    f"**{project.name}**",
+                    key=f"del_name_{project.id}",
+                )
+                c1, c2 = st.columns(2)
+                can_delete = typed == project.name
+                if c1.button(
+                    "Confirmar eliminación",
+                    key=f"confirm_del_proj_{project.id}",
+                    disabled=not can_delete,
+                ):
+                    pid = project.id
+                    if pid is not None:
+                        with Session(engine) as session:
+                            campaigns = list(
+                                session.exec(
+                                    select(CampaignDetailDB).where(
+                                        CampaignDetailDB.project_id == pid
+                                    )
+                                ).all()
+                            )
+                            for camp in campaigns:
+                                bps = list(
+                                    session.exec(
+                                        select(BuyerPersonaDB).where(
+                                            BuyerPersonaDB.campaign_detail_id == camp.id
+                                        )
+                                    ).all()
+                                )
+                                for bp in bps:
+                                    seqs = list(
+                                        session.exec(
+                                            select(SequenceDB).where(
+                                                SequenceDB.buyer_persona_id == bp.id
+                                            )
+                                        ).all()
+                                    )
+                                    for seq in seqs:
+                                        msgs = list(
+                                            session.exec(
+                                                select(MessageDB).where(
+                                                    MessageDB.sequence_id == seq.id
+                                                )
+                                            ).all()
+                                        )
+                                        for msg in msgs:
+                                            vals = list(
+                                                session.exec(
+                                                    select(ValidationDB).where(
+                                                        ValidationDB.message_id
+                                                        == msg.id
+                                                    )
+                                                ).all()
+                                            )
+                                            for v in vals:
+                                                session.delete(v)
+                                            session.delete(msg)
+                                        session.delete(seq)
+                                    session.delete(bp)
+
+                            for t in session.exec(
+                                select(TaskDB).where(TaskDB.project_id == pid)
+                            ).all():
+                                session.delete(t)
+
+                            for camp in campaigns:
+                                session.delete(camp)
+
+                            for a in session.exec(
+                                select(AssignmentDB).where(
+                                    AssignmentDB.project_id == pid
+                                )
+                            ).all():
+                                session.delete(a)
+
+                            db_proj = session.get(ProjectDB, pid)
+                            if db_proj is not None:
+                                session.delete(db_proj)
+                            session.commit()
+                        st.session_state[del_key] = False
+                        st.success(f"Proyecto '{project.name}' eliminado.")
+                        st.rerun()
+                if c2.button("Cancelar", key=f"cancel_del_proj_{project.id}"):
+                    st.session_state[del_key] = False
                     st.rerun()
