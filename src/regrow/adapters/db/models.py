@@ -148,3 +148,13 @@ class ValidationDB(SQLModel, table=True):
     text: str
     approved: bool = False
     created_at: datetime | None = Field(default_factory=datetime.now)
+
+
+class CommentDB(SQLModel, table=True):
+    __tablename__ = "comments"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    task_id: int = Field(foreign_key="tasks.id")
+    author_id: int = Field(foreign_key="team_members.id")
+    text: str
+    created_at: datetime = Field(default_factory=datetime.now)

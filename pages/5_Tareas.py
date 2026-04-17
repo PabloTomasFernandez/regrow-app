@@ -7,6 +7,7 @@ from regrow.adapters.db.engine import engine
 from regrow.adapters.db.models import (
     CampaignDetailDB,
     ClientDB,
+    CommentDB,
     CompanyDB,
     ProjectDB,
     TaskDB,
@@ -64,6 +65,15 @@ with Session(engine) as session:
     companies_by_id = {c.id: c for c in session.exec(select(CompanyDB)).all()}
     all_tasks = list(session.exec(select(TaskDB)).all())
     all_campaigns = list(session.exec(select(CampaignDetailDB)).all())
+    all_comments = list(session.exec(select(CommentDB)).all())
+
+comments_by_task: dict[int, list[CommentDB]] = {}
+for cmt in all_comments:
+    comments_by_task.setdefault(cmt.task_id, []).append(cmt)
+for lst in comments_by_task.values():
+    lst.sort(key=lambda c: c.created_at)
+
+active_members = [m for m in members if m.active]
 
 members_by_id = {m.id: m for m in members}
 projects_by_id = {p.id: p for p in projects}
@@ -137,12 +147,15 @@ else:
             st.subheader(f"{company_name} — {project_name}")
             for t in sorted(ptasks, key=lambda x: x.due_date or date.max):
                 cols = st.columns([5, 2, 2, 2])
+                n_comments = len(comments_by_task.get(t.id or 0, []))
+                comment_badge = f" 💬 {n_comments}" if n_comments > 0 else ""
                 if is_overdue(t):
                     cols[0].markdown(
-                        f":red[⚠️ **{t.title}** — vencida hace {days_overdue(t)} días]"
+                        f":red[⚠️ **{t.title}** — vencida hace "
+                        f"{days_overdue(t)} días]{comment_badge}"
                     )
                 else:
-                    cols[0].markdown(f"**{t.title}**")
+                    cols[0].markdown(f"**{t.title}**{comment_badge}")
                 cols[1].markdown(f"Vence: {t.due_date or '—'}")
                 if t.status == TaskStatus.done:
                     cols[2].markdown(f"`done` · {t.completed_at or '—'}")
@@ -184,82 +197,127 @@ else:
     if not proj_tasks:
         st.caption("Este proyecto no tiene tareas.")
     else:
-        header_cols = st.columns([1, 1, 4, 3, 2, 2, 2])
-        headers = [
-            "Semana",
-            "Campaña",
-            "Tarea",
-            "Asignado",
-            "Estado",
-            "Vencimiento",
-            "",
-        ]
-        for col, text in zip(header_cols, headers, strict=True):
-            col.markdown(f"**{text}**")
-
         reassign_options: dict[str, int | None] = {"Sin asignar": None}
         for m in members:
             if m.id is not None:
                 reassign_options[f"{m.name} ({m.role})"] = m.id
         reassign_keys = list(reassign_options.keys())
 
+        author_options: dict[str, int] = {}
+        for m in active_members:
+            if m.id is not None:
+                author_options[f"{m.name} ({m.role})"] = m.id
+        author_labels = list(author_options.keys())
+
         sorted_tasks = sorted(
             proj_tasks,
             key=lambda x: (task_week(x, selected_project), x.due_date or date.max),
         )
         for t in sorted_tasks:
-            row = st.columns([1, 1, 4, 3, 2, 2, 2])
+            if t.id is None:
+                continue
+            tid: int = t.id
+            task_comments = comments_by_task.get(tid, [])
+            n_comments = len(task_comments)
             week = task_week(t, selected_project)
-            assignee = (
-                members_by_id.get(t.assigned_to) if t.assigned_to is not None else None
-            )
-            assignee_name = assignee.name if assignee else "Sin asignar"
-            overdue = is_overdue(t)
             camp_text = campaign_label(t)
-
-            if overdue:
-                row[0].markdown(f":red[{week}]")
-                row[1].markdown(f":red[{camp_text}]")
-                row[2].markdown(f":red[⚠️ {t.title}]")
-                row[4].markdown(f":red[`{t.status}`]")
-                row[5].markdown(f":red[{t.due_date}]")
-            else:
-                row[0].markdown(str(week))
-                row[1].markdown(camp_text)
-                row[2].markdown(t.title)
-                if t.status == TaskStatus.done:
-                    row[4].markdown(f"`done` · {t.completed_at or '—'}")
-                else:
-                    row[4].markdown(f"`{t.status}`")
-                row[5].markdown(str(t.due_date or "—"))
-
-            current_idx = 0
-            for i, (_label, mid) in enumerate(reassign_options.items()):
-                if mid == t.assigned_to:
-                    current_idx = i
-                    break
-            new_label = row[3].selectbox(
-                "Asignar",
-                reassign_keys,
-                index=current_idx,
-                key=f"assign_{t.id}",
-                label_visibility="collapsed",
+            overdue = is_overdue(t)
+            due_label = str(t.due_date or "—")
+            status_label = t.status
+            if t.status == TaskStatus.done:
+                status_label = f"done · {t.completed_at or '—'}"
+            prefix = "⚠️ " if overdue else ""
+            comment_suffix = f" ({n_comments} comentarios)" if n_comments > 0 else ""
+            exp_label = (
+                f"{prefix}S{week} · {camp_text} · {t.title} · "
+                f"`{status_label}` · vence {due_label}{comment_suffix}"
             )
-            new_member_id = reassign_options[new_label]
-            if new_member_id != t.assigned_to and t.id is not None:
-                reassign(t.id, new_member_id)
-                st.rerun()
 
-            if t.status != TaskStatus.done and t.id is not None:
-                completed_on = row[6].date_input(
-                    "Fecha",
-                    value=today,
-                    key=f"compdate_proj_{t.id}",
-                    label_visibility="collapsed",
+            with st.expander(exp_label):
+                assignee = (
+                    members_by_id.get(t.assigned_to)
+                    if t.assigned_to is not None
+                    else None
                 )
-                if row[6].button("Marcar hecha", key=f"done_proj_{t.id}"):
-                    mark_done(t.id, completed_on)
+                assignee_name = assignee.name if assignee else "Sin asignar"
+                st.markdown(
+                    f"**Asignado:** {assignee_name}  \n"
+                    f"**Estado:** `{t.status}`  \n"
+                    f"**Vencimiento:** {due_label}"
+                )
+
+                current_idx = 0
+                for i, (_label, mid) in enumerate(reassign_options.items()):
+                    if mid == t.assigned_to:
+                        current_idx = i
+                        break
+                new_label = st.selectbox(
+                    "Reasignar",
+                    reassign_keys,
+                    index=current_idx,
+                    key=f"assign_{tid}",
+                )
+                new_member_id = reassign_options[new_label]
+                if new_member_id != t.assigned_to:
+                    reassign(tid, new_member_id)
                     st.rerun()
+
+                if t.status != TaskStatus.done:
+                    completed_on = st.date_input(
+                        "Fecha de completado",
+                        value=today,
+                        key=f"compdate_proj_{tid}",
+                    )
+                    if st.button("Marcar hecha", key=f"done_proj_{tid}"):
+                        mark_done(tid, completed_on)
+                        st.rerun()
+
+                st.divider()
+                st.markdown("**Comentarios**")
+                if not task_comments:
+                    st.caption("Sin comentarios.")
+                else:
+                    for cmt in task_comments:
+                        author = members_by_id.get(cmt.author_id)
+                        author_name = author.name if author else f"ID {cmt.author_id}"
+                        stamp = cmt.created_at.strftime("%Y-%m-%d %H:%M")
+                        c_cols = st.columns([10, 1])
+                        c_cols[0].markdown(
+                            f"**{author_name}** · _{stamp}_  \n{cmt.text}"
+                        )
+                        if c_cols[1].button("🗑️", key=f"del_cmt_{cmt.id}"):
+                            with Session(engine) as session:
+                                db_cmt = session.get(CommentDB, cmt.id)
+                                if db_cmt is not None:
+                                    session.delete(db_cmt)
+                                    session.commit()
+                            st.rerun()
+
+                if not author_labels:
+                    st.caption("No hay miembros activos para comentar.")
+                else:
+                    with st.form(f"add_comment_{tid}", clear_on_submit=True):
+                        author_sel = st.selectbox(
+                            "Autor", author_labels, key=f"cmt_author_{tid}"
+                        )
+                        text_val = st.text_area(
+                            "Comentario", height=120, key=f"cmt_text_{tid}"
+                        )
+                        if st.form_submit_button("Agregar comentario"):
+                            if not text_val.strip():
+                                st.error("El comentario no puede estar vacío.")
+                            else:
+                                author_id = author_options[author_sel]
+                                with Session(engine) as session:
+                                    session.add(
+                                        CommentDB(
+                                            task_id=tid,
+                                            author_id=author_id,
+                                            text=text_val.strip(),
+                                        )
+                                    )
+                                    session.commit()
+                                st.rerun()
 
 st.divider()
 

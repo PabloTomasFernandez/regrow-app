@@ -7,6 +7,7 @@ from regrow.adapters.db.models import (
     BuyerPersonaDB,
     CampaignDetailDB,
     ClientDB,
+    CommentDB,
     CompanyDB,
     MessageDB,
     ProjectDB,
@@ -241,3 +242,27 @@ class Repository:
     def get_validations_by_message(self, message_id: int) -> list[ValidationDB]:
         statement = select(ValidationDB).where(ValidationDB.message_id == message_id)
         return list(self.session.exec(statement).all())
+
+    # --- Comments ---
+
+    def create_comment(self, comment: CommentDB) -> CommentDB:
+        self.session.add(comment)
+        self.session.commit()
+        self.session.refresh(comment)
+        return comment
+
+    def get_comments_by_task(self, task_id: int) -> list[CommentDB]:
+        statement = (
+            select(CommentDB)
+            .where(CommentDB.task_id == task_id)
+            .order_by(CommentDB.created_at)  # type: ignore[arg-type]
+        )
+        return list(self.session.exec(statement).all())
+
+    def delete_comment(self, comment_id: int) -> bool:
+        comment = self.session.get(CommentDB, comment_id)
+        if comment is None:
+            return False
+        self.session.delete(comment)
+        self.session.commit()
+        return True
