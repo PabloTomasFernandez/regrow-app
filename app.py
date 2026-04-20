@@ -15,6 +15,9 @@ from regrow.adapters.db.models import (
     TaskDB,
 )
 from regrow.domain.models import TaskStatus
+from regrow.ui.permissions import filter_visible_projects, is_admin
+from regrow.ui.sidebar import render_viewer_selector
+from regrow.ui.viewer import current_viewer
 
 
 def current_week(activated_at: date | None, today: date) -> int:
@@ -90,11 +93,19 @@ def project_metrics(
 
 def main() -> None:
     st.set_page_config(page_title="Regrow", layout="wide")
+    render_viewer_selector()
     st.title("Regrow — Panel de control")
+
+    viewer = current_viewer()
 
     data = load_data()
     today: date = data["today"]  # type: ignore[assignment]
-    all_projects: list[ProjectDB] = data["projects"]  # type: ignore[assignment]
+    all_projects_unfiltered: list[ProjectDB] = data["projects"]  # type: ignore[assignment]
+    all_projects = filter_visible_projects(viewer, all_projects_unfiltered)  # type: ignore[assignment]
+
+    if not is_admin(viewer) and not all_projects:
+        st.info("No tenés proyectos asignados. Pedile a un admin que te asigne.")
+        return
     clients: dict[int, ClientDB] = data["clients"]  # type: ignore[assignment]
     companies: dict[int, CompanyDB] = data["companies"]  # type: ignore[assignment]
     bps_by_campaign: dict[int, list[BuyerPersonaDB]] = data["bps_by_campaign"]  # type: ignore[assignment]

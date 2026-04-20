@@ -14,11 +14,17 @@ from regrow.adapters.db.models import (
     TeamMemberDB,
 )
 from regrow.domain.models import ProjectStatus, TaskStatus
+from regrow.ui.permissions import filter_visible_projects, is_admin
+from regrow.ui.sidebar import render_viewer_selector
+from regrow.ui.viewer import current_viewer
 
 st.set_page_config(page_title="Tareas — Regrow", layout="wide")
+render_viewer_selector()
 st.title("Tareas")
 
 today = date.today()
+viewer = current_viewer()
+admin_mode = is_admin(viewer)
 
 
 def task_week(task: TaskDB, project: ProjectDB | None) -> int:
@@ -112,8 +118,23 @@ else:
         f"{m.name} ({m.role})": m for m in members
     }
     member_labels["Sin asignar"] = None
+
+    # Default: viewer actual (o "Sin asignar" si no tiene ID)
+    viewer_id = viewer.id if viewer and viewer.id is not None else None
+    default_label = next(
+        (lbl for lbl, m in member_labels.items() if m and m.id == viewer_id),
+        f"{viewer.name} ({viewer.role})"
+        if viewer and viewer.id
+        else list(member_labels.keys())[0],
+    )
+
     selected_member_label = st.selectbox(
-        "Ver tareas de:", list(member_labels.keys()), key="member_select"
+        "Ver tareas de:",
+        list(member_labels.keys()),
+        key="member_select",
+        index=list(member_labels.keys()).index(default_label)
+        if default_label in member_labels
+        else 0,
     )
     selected_member = member_labels[selected_member_label]
     selected_member_id = selected_member.id if selected_member else None
@@ -162,13 +183,20 @@ else:
                 else:
                     cols[2].markdown(f"`{t.status}`")
                 if t.status != TaskStatus.done and t.id is not None:
+                    can_complete = admin_mode or t.assigned_to == (
+                        viewer.id if viewer else None
+                    )
                     completed_on = cols[3].date_input(
                         "Fecha de completado",
                         value=today,
                         key=f"compdate_mine_{t.id}",
                         label_visibility="collapsed",
                     )
-                    if cols[3].button("Marcar como hecha", key=f"done_mine_{t.id}"):
+                    if cols[3].button(
+                        "Marcar como hecha",
+                        key=f"done_mine_{t.id}",
+                        disabled=not can_complete,
+                    ):
                         mark_done(t.id, completed_on)
                         st.rerun()
 
@@ -180,8 +208,13 @@ st.header("2. Vista por proyecto")
 if not projects:
     st.info("No hay proyectos.")
 else:
+    visible_projects = filter_visible_projects(viewer, projects)  # type: ignore[assignment]
+    if not admin_mode and not visible_projects:
+        st.info("No tenés proyectos asignados.")
+        st.stop()
+
     project_labels = {
-        f"{project_company(p)} — {p.name} (id {p.id})": p for p in projects
+        f"{project_company(p)} — {p.name} (id {p.id})": p for p in visible_projects
     }
     selected_proj_label = st.selectbox(
         "Proyecto", list(project_labels.keys()), key="proj_select"
@@ -257,18 +290,27 @@ else:
                     index=current_idx,
                     key=f"assign_{tid}",
                 )
-                new_member_id = reassign_options[new_label]
-                if new_member_id != t.assigned_to:
-                    reassign(tid, new_member_id)
-                    st.rerun()
+                if admin_mode:
+                    new_member_id = reassign_options[new_label]
+                    if new_member_id != t.assigned_to:
+                        reassign(tid, new_member_id)
+                        st.rerun()
 
                 if t.status != TaskStatus.done:
+                    can_complete = admin_mode or t.assigned_to == (
+                        viewer.id if viewer else None
+                    )
                     completed_on = st.date_input(
                         "Fecha de completado",
                         value=today,
                         key=f"compdate_proj_{tid}",
+                        disabled=not can_complete,
                     )
-                    if st.button("Marcar hecha", key=f"done_proj_{tid}"):
+                    if st.button(
+                        "Marcar hecha",
+                        key=f"done_proj_{tid}",
+                        disabled=not can_complete,
+                    ):
                         mark_done(tid, completed_on)
                         st.rerun()
 

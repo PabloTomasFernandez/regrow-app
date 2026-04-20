@@ -4,8 +4,12 @@ from sqlmodel import Session, select
 from regrow.adapters.db.engine import engine
 from regrow.adapters.db.models import TaskTemplateDB
 from regrow.domain.models import TeamRole
+from regrow.ui.permissions import require_admin
+from regrow.ui.sidebar import render_viewer_selector
 
 st.set_page_config(page_title="Templates — Regrow", layout="wide")
+render_viewer_selector()
+require_admin()
 st.title("Templates de tareas")
 
 ROLE_OPTIONS = [r.value for r in TeamRole]

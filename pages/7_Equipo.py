@@ -4,8 +4,12 @@ from sqlmodel import Session, select, update
 from regrow.adapters.db.engine import engine
 from regrow.adapters.db.models import AssignmentDB, ProjectDB, TaskDB, TeamMemberDB
 from regrow.domain.models import ProjectStatus, TaskStatus, TeamRole
+from regrow.ui.permissions import require_admin
+from regrow.ui.sidebar import render_viewer_selector
 
 st.set_page_config(page_title="Equipo — Regrow", layout="wide")
+render_viewer_selector()
+require_admin()
 st.title("Equipo")
 
 ROLE_LABELS: list[tuple[str, TeamRole]] = [
